@@ -665,6 +665,21 @@
     });
 
     detectBtn.addEventListener('click', async () => {
+      // Beatport: ページから BPM を再取得
+      if (SITE === 'beatport') {
+        statusEl.textContent = 'Extracting BPM from page...';
+        lastBeatportBpm = null; // 強制再取得
+        const bpm = extractBeatportBpm();
+        if (bpm) {
+          setOriginalBpm(bpm);
+          statusEl.textContent = `Extracted: ${bpm} BPM`;
+        } else {
+          statusEl.textContent = 'BPM not found on this page';
+        }
+        return;
+      }
+
+      // BandCamp: 音声解析で BPM 検知
       if (state.bpmDetector) return;
       statusEl.textContent = 'Preparing graph...';
       const ok = await ensureGraph();
