@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TEMPO Slider",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "description": "CDJ-style tempo / pitch keep / BPM controls for music playing in your browser.",
   "permissions": [
     "activeTab",
@@ -80,7 +80,10 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "bpm-changer@jbnet.jp",
-      "strict_min_version": "128.0"
+      "strict_min_version": "128.0",
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
