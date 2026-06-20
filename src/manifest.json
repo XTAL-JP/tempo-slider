@@ -23,11 +23,17 @@
       ],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://*.beatport.com/*"],
+      "js": ["page-inject.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["rubberband-worklet.js", "panel.css"],
+      "resources": ["rubberband-worklet.js", "panel.css", "page-inject.js"],
       "matches": [
         "https://*.bandcamp.com/*",
         "https://*.beatport.com/*"

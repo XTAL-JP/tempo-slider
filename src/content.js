@@ -6,6 +6,14 @@
 
   const ext = (typeof browser !== 'undefined') ? browser : chrome;
 
+  // サイト種別判定 (Beatport は Web Audio 直接再生のため別経路で制御)
+  const SITE = location.hostname.endsWith('beatport.com') ? 'beatport' : 'bandcamp';
+  const MSG_TAG = '__tempoSlider';
+
+  function postToPage(type, payload) {
+    window.postMessage(Object.assign({ [MSG_TAG]: true, type }, payload || {}), '*');
+  }
+
   const state = {
     audioCtx: null,
     sourceNode: null,
@@ -168,6 +176,10 @@
     if (state.masterTempo && state.workletNode) {
       // Rubber Band の pitch を audio.playbackRate の逆数に設定してピッチを元に戻す
       state.workletNode.port.postMessage(JSON.stringify(['pitch', 1 / state.tempoRatio]));
+    }
+    // Beatport: ページの Web Audio に直接 playbackRate を適用
+    if (SITE === 'beatport') {
+      postToPage('setRate', { rate: state.tempoRatio });
     }
     updateTempoDisplay();
     updateCurrentBpmDisplay();
