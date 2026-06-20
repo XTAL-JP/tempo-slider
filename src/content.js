@@ -465,9 +465,18 @@
     const link = document.createElement('link');
     link.rel = 'stylesheet';
     link.href = ext.runtime.getURL('panel.css');
+    // CSS 読み込み完了後にイベントバインド（位置復元を正しい panel サイズで実行するため）
+    let bound = false;
+    const bindOnce = () => {
+      if (bound) return;
+      bound = true;
+      bindPanelEvents(panel);
+    };
+    link.addEventListener('load', bindOnce, { once: true });
+    link.addEventListener('error', bindOnce, { once: true });
     document.head.appendChild(link);
-
-    bindPanelEvents(panel);
+    // フォールバック (load イベントが発火しない環境用)
+    setTimeout(bindOnce, 500);
   }
 
   // ============================================================
@@ -492,23 +501,35 @@
 
     function savePosition() {
       const rect = panel.getBoundingClientRect();
+      const payload = { top: rect.top, left: rect.left };
+      // Promise / Callback どちらでも動くように try-catch でラップ
       try {
-        ext.storage.local.set({ [STORAGE_KEY]: { top: rect.top, left: rect.left } });
+        const ret = ext.storage.local.set({ [STORAGE_KEY]: payload });
+        if (ret && typeof ret.catch === 'function') {
+          ret.catch(e => console.warn('[TEMPO Slider] save error:', e));
+        }
+        console.log('[TEMPO Slider] saved position', payload);
       } catch (e) {
-        console.warn('[TEMPO Slider] 位置保存失敗:', e);
+        console.warn('[TEMPO Slider] save sync error:', e);
       }
     }
 
     // 保存された位置を復元
+    const onRestore = (result) => {
+      console.log('[TEMPO Slider] storage.get result:', result);
+      const pos = result && result[STORAGE_KEY];
+      if (pos && typeof pos.top === 'number' && typeof pos.left === 'number') {
+        applyPosition(pos.top, pos.left);
+      }
+    };
     try {
-      ext.storage.local.get([STORAGE_KEY], (result) => {
-        const pos = result && result[STORAGE_KEY];
-        if (pos && typeof pos.top === 'number' && typeof pos.left === 'number') {
-          applyPosition(pos.top, pos.left);
-        }
-      });
+      const ret = ext.storage.local.get(STORAGE_KEY, onRestore);
+      // Promise API の場合（コールバック未指定でも Promise を返す Chrome MV3 ）
+      if (ret && typeof ret.then === 'function') {
+        ret.then(onRestore).catch(e => console.warn('[TEMPO Slider] restore error:', e));
+      }
     } catch (e) {
-      console.warn('[TEMPO Slider] 位置復元失敗:', e);
+      console.warn('[TEMPO Slider] restore sync error:', e);
     }
 
     let dragging = false;

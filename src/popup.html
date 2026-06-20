@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>TEMPO Slider</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="ts-popup__header">
+    <img src="icons/icon-32.png" width="20" height="20" alt="">
+    <strong>TEMPO Slider</strong>
+  </header>
+
+  <section class="ts-popup__current">
+    <div class="ts-popup__host" id="currentHost">—</div>
+    <button type="button" id="addCurrent" class="ts-popup__primary" disabled>+ Add this site</button>
+    <div class="ts-popup__status" id="status"></div>
+  </section>
+
+  <section class="ts-popup__list">
+    <h3>Added sites</h3>
+    <ul id="siteList"></ul>
+  </section>
+
+  <footer class="ts-popup__footer">
+    Built-in: bandcamp / beatport / traxsource
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
