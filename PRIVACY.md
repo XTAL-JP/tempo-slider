@@ -35,7 +35,7 @@ The extension processes audio entirely **locally in your browser**.
 
 ## Open source
 
-This extension's source code is published at https://github.com/RyoArai/tempo-slider under GPL-2.0.
+This extension's source code is published at https://github.com/XTAL-JP/tempo-slider under GPL-2.0.
 
 ## Contact
 

@@ -64,7 +64,7 @@ USE CASES
 • Tap to set source BPM and see live "current BPM" feedback as you move the fader
 
 PRIVACY
-This extension does NOT collect, track, or transmit any data. All processing happens locally in your browser. Source code is open at https://github.com/RyoArai/tempo-slider under GPL-2.0.
+This extension does NOT collect, track, or transmit any data. All processing happens locally in your browser. Source code is open at https://github.com/XTAL-JP/tempo-slider under GPL-2.0.
 
 Note: this extension uses declarativeNetRequest to add CORS headers and remove Content-Security-Policy headers on supported sites. This is required for the audio processing pipeline (Rubber Band WASM library) to function inside the page's audio context. No data is sent externally.
 ```
@@ -96,7 +96,7 @@ TEMPO Slider は、DJ 向け音源販売サイトに Pioneer CDJ 風のテンポ
 • タップで原曲 BPM を設定 → フェーダー操作中の「現在 BPM」がリアルタイムで表示
 
 プライバシー
-この拡張機能はデータの収集・追跡・送信を一切行いません。すべての処理はブラウザ内で完結します。ソースコードは https://github.com/RyoArai/tempo-slider で GPL-2.0 ライセンスで公開しています。
+この拡張機能はデータの収集・追跡・送信を一切行いません。すべての処理はブラウザ内で完結します。ソースコードは https://github.com/XTAL-JP/tempo-slider で GPL-2.0 ライセンスで公開しています。
 
 注: 対応サイトで音声処理パイプライン (Rubber Band WASM ライブラリ) を動かすため、declarativeNetRequest 機能で CORS ヘッダの追加と Content-Security-Policy ヘッダの削除を行っています。外部へのデータ送信はありません。
 ```
@@ -121,18 +121,18 @@ Apply Pioneer CDJ-style tempo and pitch keep controls to audio playing on suppor
 ## Privacy policy URL
 
 ```
-https://ryoarai.github.io/tempo-slider/privacy.html
+https://xtal-jp.github.io/tempo-slider/privacy.html
 ```
 (GitHub Pages を有効化後に公開される URL。docs/privacy.html を配置済み)
 
 ## Homepage URL
 
 ```
-https://github.com/RyoArai/tempo-slider
+https://github.com/XTAL-JP/tempo-slider
 ```
 
 ## Support URL
 
 ```
-https://github.com/RyoArai/tempo-slider/issues
+https://github.com/XTAL-JP/tempo-slider/issues
 ```

@@ -20,8 +20,8 @@
 リポジトリの Settings → Pages:
 - Source: `Deploy from a branch`
 - Branch: `main` / `/docs` フォルダを選択
-- 数分後に https://ryoarai.github.io/tempo-slider/ で公開される
-- プライバシーポリシー URL: https://ryoarai.github.io/tempo-slider/privacy.html
+- 数分後に https://xtal-jp.github.io/tempo-slider/ で公開される
+- プライバシーポリシー URL: https://xtal-jp.github.io/tempo-slider/privacy.html
 
 ### 2. スクリーンショット撮影 (1280x800 推奨)
 
