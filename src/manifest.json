@@ -1,0 +1,57 @@
+{
+  "manifest_version": 3,
+  "name": "TEMPO Slider",
+  "version": "0.5.0",
+  "description": "CDJ-style tempo / pitch keep / BPM controls for music playing in your browser.",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
+  ],
+  "host_permissions": [
+    "https://*.bandcamp.com/*",
+    "https://*.bcbits.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.bandcamp.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["rubberband-worklet.js", "panel.css"],
+      "matches": ["https://*.bandcamp.com/*"]
+    }
+  ],
+  "declarative_net_request": {
+    "rule_resources": [
+      {
+        "id": "cors",
+        "enabled": true,
+        "path": "rules.json"
+      }
+    ]
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "action": {
+    "default_title": "TEMPO Slider",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png"
+    }
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "bpm-changer@jbnet.jp",
+      "strict_min_version": "128.0"
+    }
+  }
+}

@@ -1,0 +1,441 @@
+/* BPM Changer - CDJ風コントロールパネル */
+
+#tempo-slider-panel {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483647;
+  width: 340px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(180deg, #1a1a1d 0%, #0f0f12 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  user-select: none;
+}
+
+#tempo-slider-panel * {
+  box-sizing: border-box;
+}
+
+/* ヘッダー (ドラッグハンドル) */
+#tempo-slider-panel .tempo-slider__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: move;
+  touch-action: none;
+  user-select: none;
+}
+#tempo-slider-panel .tempo-slider__header.is-dragging {
+  cursor: grabbing;
+}
+#tempo-slider-panel .tempo-slider__header button {
+  cursor: pointer;
+}
+#tempo-slider-panel .tempo-slider__title {
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+#tempo-slider-panel .tempo-slider__toggle {
+  width: 22px; height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 14px; line-height: 1;
+  cursor: pointer;
+}
+
+/* ボディ */
+#tempo-slider-panel .tempo-slider__body {
+  padding: 12px;
+}
+
+/* メインレイアウト（左: フェーダー / 右: 情報） */
+#tempo-slider-panel .tempo-slider__main {
+  display: flex;
+  gap: 14px;
+}
+#tempo-slider-panel .tempo-slider__col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+#tempo-slider-panel .tempo-slider__col--fader {
+  flex: 0 0 100px;
+  align-items: center;
+}
+#tempo-slider-panel .tempo-slider__col--info {
+  flex: 1;
+}
+
+/* レンジセレクター */
+#tempo-slider-panel .tempo-slider__range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px;
+  width: 100%;
+}
+#tempo-slider-panel .tempo-slider__range-btn {
+  padding: 3px 0;
+  background: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+#tempo-slider-panel .tempo-slider__range-btn:hover {
+  background: #34343a;
+  color: #fff;
+}
+#tempo-slider-panel .tempo-slider__range-btn.is-active {
+  background: #4a4a52;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(127, 214, 255, 0.4);
+}
+
+/* フェーダーエリア */
+#tempo-slider-panel .tempo-slider__fader-area {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+  height: 220px;
+}
+
+/* マーク列（−/0/+ と中央LED） */
+#tempo-slider-panel .tempo-slider__fader-marks {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 600;
+  font-family: monospace;
+  padding: 4px 0;
+}
+#tempo-slider-panel .tempo-slider__mark {
+  display: block;
+}
+#tempo-slider-panel .tempo-slider__mark--center {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+#tempo-slider-panel .tempo-slider__center-led {
+  width: 8px;
+  height: 4px;
+  background: #1c2818;
+  border-radius: 1px;
+  border: 1px solid rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+  transition: background 0.1s, box-shadow 0.1s;
+}
+#tempo-slider-panel .tempo-slider__center-led.is-on {
+  background: #50ff80;
+  box-shadow: 0 0 6px rgba(80, 255, 128, 0.8), inset 0 0 3px rgba(255, 255, 255, 0.5);
+  border-color: rgba(80, 255, 128, 0.6);
+}
+
+/* トラック (背景に目盛り) */
+#tempo-slider-panel .tempo-slider__fader-track {
+  position: relative;
+  flex: 1;
+  min-width: 50px;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.22) 0,
+    rgba(255, 255, 255, 0.22) 1px,
+    transparent 1px,
+    transparent 5px
+  );
+  background-position: center;
+  background-repeat: repeat-y;
+  background-size: 36px auto;
+  border-radius: 2px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+/* レール（中央の縦線） */
+#tempo-slider-panel .tempo-slider__fader-rail {
+  position: absolute;
+  left: 50%;
+  top: 14px;
+  bottom: 14px;
+  width: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Thumb（つまみバー） */
+#tempo-slider-panel .tempo-slider__fader-thumb {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 32px;
+  height: 10px;
+  background: linear-gradient(180deg, #6e6e76 0%, #2e2e34 100%);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  transform: translate(-50%, -50%);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  z-index: 2;
+}
+#tempo-slider-panel .tempo-slider__fader-thumb:active {
+  cursor: grabbing;
+  background: linear-gradient(180deg, #7a7a82 0%, #3a3a40 100%);
+}
+#tempo-slider-panel .tempo-slider__fader-thumb::after {
+  /* 中央のライン（CDJ風の彫り込み） */
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.4);
+  transform: translateY(-0.5px);
+  pointer-events: none;
+}
+
+/* WebKit track / thumb */
+#tempo-slider-panel .tempo-slider__fader::-webkit-slider-runnable-track {
+  background: linear-gradient(to right, #0a0a0c 0%, #2a2a2e 50%, #0a0a0c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  width: 6px;
+}
+#tempo-slider-panel .tempo-slider__fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 16px;
+  background: linear-gradient(180deg, #5a5a62 0%, #2e2e34 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+}
+#tempo-slider-panel .tempo-slider__fader::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+/* Firefox track / thumb */
+#tempo-slider-panel .tempo-slider__fader::-moz-range-track {
+  background: linear-gradient(to right, #0a0a0c 0%, #2a2a2e 50%, #0a0a0c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  width: 6px;
+}
+#tempo-slider-panel .tempo-slider__fader::-moz-range-thumb {
+  width: 28px;
+  height: 16px;
+  background: linear-gradient(180deg, #5a5a62 0%, #2e2e34 100%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  cursor: grab;
+}
+
+/* TEMPO RESET ボタン */
+#tempo-slider-panel .tempo-slider__reset {
+  padding: 6px 8px;
+  background: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  width: 100%;
+}
+#tempo-slider-panel .tempo-slider__reset:hover {
+  background: #34343a;
+}
+
+/* テンポ値表示 */
+#tempo-slider-panel .tempo-slider__tempo-val {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #ff5050;
+  background: #0a0a0c;
+  border: 1px solid rgba(255, 80, 80, 0.3);
+  border-radius: 3px;
+  padding: 6px 8px;
+  letter-spacing: 0.02em;
+}
+#tempo-slider-panel .tempo-slider__tempo-val.is-zero {
+  color: rgba(255, 255, 255, 0.4);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* MASTER TEMPO ボタン */
+#tempo-slider-panel .tempo-slider__master-tempo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+#tempo-slider-panel .tempo-slider__master-tempo:hover {
+  background: #34343a;
+}
+#tempo-slider-panel .tempo-slider__master-tempo.is-on {
+  color: #fff;
+}
+#tempo-slider-panel .tempo-slider__master-tempo:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+#tempo-slider-panel .tempo-slider__led {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  background: #401010;
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+#tempo-slider-panel .tempo-slider__master-tempo.is-on .tempo-slider__led {
+  background: #ff3030;
+  box-shadow: 0 0 8px rgba(255, 48, 48, 0.8), inset 0 0 4px rgba(255, 255, 255, 0.4);
+}
+
+/* BPM セクション */
+#tempo-slider-panel .tempo-slider__bpm-block {
+  padding: 8px;
+  background: #15151a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+#tempo-slider-panel .tempo-slider__bpm-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+#tempo-slider-panel .tempo-slider__bpm-row--current {
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+#tempo-slider-panel .tempo-slider__label {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+#tempo-slider-panel .tempo-slider__original {
+  width: 56px;
+  padding: 3px 6px;
+  background: #0a0a0c;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: #fff;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  -moz-appearance: textfield;
+}
+#tempo-slider-panel .tempo-slider__original::-webkit-outer-spin-button,
+#tempo-slider-panel .tempo-slider__original::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+#tempo-slider-panel .tempo-slider__unit {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.05em;
+}
+#tempo-slider-panel .tempo-slider__current-value {
+  flex: 1;
+  text-align: left;
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #7fd6ff;
+}
+#tempo-slider-panel .tempo-slider__bpm-actions {
+  display: flex;
+  gap: 4px;
+}
+#tempo-slider-panel .tempo-slider__tap,
+#tempo-slider-panel .tempo-slider__detect {
+  flex: 1;
+  padding: 4px 8px;
+  background: #2a2a2e;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 3px;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+#tempo-slider-panel .tempo-slider__tap:hover,
+#tempo-slider-panel .tempo-slider__detect:hover {
+  background: #34343a;
+}
+#tempo-slider-panel .tempo-slider__detect:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+/* ステータス（Current BPM の下） */
+#tempo-slider-panel .tempo-slider__status {
+  min-height: 14px;
+  margin-top: 4px;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: left;
+}
+#tempo-slider-panel .tempo-slider__status:empty {
+  display: none;
+}
+
+/* ショートカット表示（ステータスの下） */
+#tempo-slider-panel .tempo-slider__shortcuts {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: left;
+  line-height: 1.6;
+}
+#tempo-slider-panel .tempo-slider__shortcuts kbd {
+  display: inline-block;
+  padding: 1px 4px;
+  margin: 0 1px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  font-family: monospace;
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
+}
