@@ -11,11 +11,16 @@
   ],
   "host_permissions": [
     "https://*.bandcamp.com/*",
-    "https://*.bcbits.com/*"
+    "https://*.bcbits.com/*",
+    "https://*.beatport.com/*",
+    "https://*.akamaized.net/*"
   ],
   "content_scripts": [
     {
-      "matches": ["https://*.bandcamp.com/*"],
+      "matches": [
+        "https://*.bandcamp.com/*",
+        "https://*.beatport.com/*"
+      ],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
@@ -23,7 +28,10 @@
   "web_accessible_resources": [
     {
       "resources": ["rubberband-worklet.js", "panel.css"],
-      "matches": ["https://*.bandcamp.com/*"]
+      "matches": [
+        "https://*.bandcamp.com/*",
+        "https://*.beatport.com/*"
+      ]
     }
   ],
   "declarative_net_request": {
