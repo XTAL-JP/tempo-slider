@@ -48,20 +48,44 @@
     // SoundTouchJS が動作する条件: ブラウザ側のピッチ保持を OFF
     // （CDJ 非 MASTER TEMPO モードでも速度と一緒にピッチが動く挙動になり、CDJ 仕様に合う）
     try { audioEl.preservesPitch = false; } catch {}
+    const hadPreviousElement = state.hookedElement !== null && state.hookedElement !== audioEl;
     state.hookedElement = audioEl;
 
     // 曲切替検知: 新しい曲が読み込まれたら BPM 情報だけクリア
     // テンポオフセット / MASTER TEMPO は維持（DJ 練習で次曲も同じテンポで継続）
+    //
+    // 複数のシグナルで検知:
+    //   1) loadstart / emptied: src 差し替え（Bandcamp は基本これ）
+    //   2) durationchange: src は同じでも内容が切り替わる MSE プレーヤー対応
+    //   3) attachLightweight が別の audio 要素で呼ばれる（プレーヤーが要素を作り直すケース）
     let lastTrackKey = getTrackKey(audioEl);
-    audioEl.addEventListener('loadstart', () => {
+    let lastDuration = audioEl.duration;
+    const checkTrackChange = () => {
       const key = getTrackKey(audioEl);
-      if (key && key !== lastTrackKey) {
+      const dur = audioEl.duration;
+      const keyChanged = key && key !== lastTrackKey;
+      // duration が NaN→数値、または明確に違う値になった場合のみ曲変更とみなす
+      // （MSE のバッファリングで小数点以下が揺れるケースを誤検知しないよう閾値あり）
+      const durChanged = !isNaN(dur) && !isNaN(lastDuration) && Math.abs(dur - lastDuration) > 0.5;
+      if (keyChanged || durChanged) {
         lastTrackKey = key;
+        lastDuration = dur;
         onTrackChange();
+      } else {
+        if (key) lastTrackKey = key;
+        if (!isNaN(dur)) lastDuration = dur;
       }
-    });
+    };
+    audioEl.addEventListener('loadstart', checkTrackChange);
+    audioEl.addEventListener('emptied', checkTrackChange);
+    audioEl.addEventListener('durationchange', checkTrackChange);
 
-    applyTempo();
+    if (hadPreviousElement) {
+      // 別の audio 要素に切り替わった = 新しい曲
+      onTrackChange();
+    } else {
+      applyTempo();
+    }
   }
 
   function getTrackKey(audioEl) {
@@ -179,6 +203,10 @@
   function applyTempo() {
     state.tempoRatio = 1 + state.tempoOffset / 100;
     if (state.hookedElement) {
+      // defaultPlaybackRate も設定しておくと、次曲ロード時に
+      // ブラウザのリソース選択アルゴリズムが playbackRate をリセットする際の
+      // リセット先がテンポ比率になり、テンポが維持される
+      try { state.hookedElement.defaultPlaybackRate = state.tempoRatio; } catch {}
       state.hookedElement.playbackRate = state.tempoRatio;
     }
     if (state.masterTempo && state.workletNode) {

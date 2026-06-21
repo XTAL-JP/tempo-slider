@@ -60,6 +60,10 @@
   function registerMediaElement(el) {
     if (!el || activeMediaElements.has(el)) return;
     activeMediaElements.add(el);
+    // defaultPlaybackRate も設定しておくと、次曲ロード時に
+    // ブラウザがリソース選択アルゴリズムで playbackRate をリセットする際、
+    // リセット先がテンポ比率になりテンポが維持される
+    try { el.defaultPlaybackRate = currentRate; } catch (e) {}
     try { el.playbackRate = currentRate; } catch (e) {}
     try { el.preservesPitch = false; } catch (e) {}
 
@@ -210,6 +214,7 @@
       try { src.playbackRate.value = rate; applied++; } catch (e) {}
     }
     for (const el of activeMediaElements) {
+      try { el.defaultPlaybackRate = rate; } catch (e) {}
       try { el.playbackRate = rate; applied++; } catch (e) {}
     }
     // MASTER TEMPO ON のときは worklet にもピッチを送る (= 1/rate)
