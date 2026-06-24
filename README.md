@@ -3,6 +3,8 @@
 A browser extension that adds CDJ-style tempo and pitch controls to music purchase sites.
 Listen to track previews at your **target BPM with master tempo (pitch keep)** while crate-digging.
 
+[![Firefox Add-on](https://img.shields.io/amo/v/tempo-slider?label=Firefox%20Add-on&color=orange)](https://addons.mozilla.org/addon/tempo-slider/)
+
 ![icon](src/icons/icon-128.png)
 
 ## Features
@@ -35,9 +37,13 @@ Other sites: add any site dynamically via the toolbar popup ("+ Add this site").
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on" and select `src/manifest.json`
 
-### Store distribution
+### Firefox (from AMO)
 
-Coming soon on Chrome Web Store and Firefox AMO.
+Install directly from [Firefox Add-ons](https://addons.mozilla.org/addon/tempo-slider/).
+
+### Chrome / Edge
+
+Chrome Web Store submission pending review.
 
 ## Keyboard shortcuts
 
