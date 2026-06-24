@@ -7,12 +7,13 @@
   const ext = (typeof browser !== 'undefined') ? browser : chrome;
 
   // サイト種別判定
-  //   bandcamp: HTML <audio> 要素経由
+  //   bandcamp / boomkat: HTML <audio> 要素経由
   //   beatport / traxsource: Web Audio 直接再生（page-inject.js 経由で制御）
   const SITE = (() => {
     const h = location.hostname;
     if (h.endsWith('beatport.com')) return 'beatport';
     if (h.endsWith('traxsource.com')) return 'traxsource';
+    if (h.endsWith('boomkat.com')) return 'boomkat';
     return 'bandcamp';
   })();
   const USES_PAGE_INJECT = (SITE === 'beatport' || SITE === 'traxsource');
