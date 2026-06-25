@@ -1,7 +1,35 @@
 // TEMPO Slider - popup script
 
 const ext = (typeof browser !== 'undefined') ? browser : chrome;
-const BUILTIN = ['bandcamp.com', 'beatport.com', 'traxsource.com'];
+const BUILTIN = ['bandcamp.com', 'beatport.com', 'traxsource.com', 'discogs.com'];
+
+// built-in サイトの動作に必要な追加 host_permissions（音源 CDN や埋め込み元）。
+// Firefox MV3 ではアップデート時に新規追加された host_permissions は自動付与されず
+// ユーザーの明示的な許可が必要になるため、popup から検出 → 承認誘導する。
+const BUILTIN_DEPS = {
+  'bandcamp.com':  ['bandcamp.com', 'bcbits.com'],
+  'beatport.com':  ['beatport.com', 'akamaized.net'],
+  'traxsource.com':['traxsource.com'],
+  'discogs.com':   ['discogs.com', 'youtube.com', 'youtube-nocookie.com'],
+};
+
+function originPatternsFor(hostname) {
+  return [`https://*.${hostname}/*`, `https://${hostname}/*`];
+}
+
+async function missingDeps(builtinHost) {
+  const deps = BUILTIN_DEPS[builtinHost] || [builtinHost];
+  const missing = [];
+  for (const dep of deps) {
+    try {
+      const granted = await ext.permissions.contains({ origins: originPatternsFor(dep) });
+      if (!granted) missing.push(dep);
+    } catch {
+      missing.push(dep);
+    }
+  }
+  return missing;
+}
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -75,8 +103,17 @@ async function refreshCurrentSiteButton() {
       btn.textContent = `+ Re-enable ${root}`;
       btn.onclick = () => enableBuiltinSite(root, tab.id);
     } else {
-      btn.disabled = true;
-      btn.textContent = 'Already supported (built-in)';
+      // Firefox MV3 ではアップデート時に新規 host_permissions が自動付与されないので
+      // 動作に必要な依存ホストが揃っているかを確認し、欠けていれば承認ボタンを出す
+      const missing = await missingDeps(root);
+      if (missing.length > 0) {
+        btn.disabled = false;
+        btn.textContent = `+ Grant permission (${missing.join(', ')})`;
+        btn.onclick = () => grantBuiltinDeps(root, missing, tab.id);
+      } else {
+        btn.disabled = true;
+        btn.textContent = 'Already supported (built-in)';
+      }
     }
   } else if (customSites.includes(root)) {
     btn.disabled = true;
@@ -175,6 +212,27 @@ async function disableBuiltinSite(hostname) {
     }
   } else {
     setStatus('Disable failed', true);
+  }
+  await refresh();
+}
+
+async function grantBuiltinDeps(builtinHost, missing, tabId) {
+  setStatus('Requesting permission...');
+  const origins = missing.flatMap(originPatternsFor);
+  let granted = false;
+  try {
+    granted = await ext.permissions.request({ origins });
+  } catch (e) {
+    setStatus(`Permission request failed: ${e.message || e}`, true);
+    return;
+  }
+  if (!granted) {
+    setStatus('Permission denied', true);
+    return;
+  }
+  setStatus(`Granted ${missing.join(', ')} — reloading tab`);
+  if (tabId) {
+    try { await ext.tabs.reload(tabId); } catch (e) {}
   }
   await refresh();
 }

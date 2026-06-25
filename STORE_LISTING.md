@@ -47,17 +47,19 @@ Other tempo extensions are usually single-site, and most just change playbackRat
 
 KEY FEATURES
 • MASTER TEMPO (pitch keep) — DAW-grade Rubber Band Library via WebAssembly. Change tempo while keeping the original key/pitch.
-• Multi-site: Bandcamp, Beatport, Traxsource — plus any site you add via the popup.
+• Multi-site: Bandcamp, Beatport, Traxsource, Discogs (YouTube previews) — plus any site you add via the popup.
 • CDJ-style vertical TEMPO fader with ±6 / ±10 / ±16 / WIDE range.
 • BPM display: manual TAP, audio-based AUTO detection, and DOM extraction on Beatport / Traxsource.
 • Keyboard shortcuts (, / . for fine adjust, Shift for coarse, R reset, M master, T tap) and mouse wheel on the fader.
 • Draggable panel with position memory.
 • Multiple <audio> elements on a page are all controlled simultaneously (record-store-style preview lists).
+• On Discogs, the panel controls the embedded YouTube preview directly — DAW-grade pitch keep applied to YouTube playback.
 
 SUPPORTED SITES (BUILT-IN)
 • Bandcamp (bandcamp.com)
 • Beatport (beatport.com)
 • Traxsource (traxsource.com)
+• Discogs (discogs.com — YouTube previews)
 
 ADDING YOUR OWN SITES
 Click the extension icon on any other music site to add it. The extension will request permission, then enable the tempo control panel.
@@ -83,17 +85,19 @@ TEMPO Slider は、DJ・クレートディガー向けに DAW 級のピッチキ
 
 主な機能
 • MASTER TEMPO（ピッチキープ）— DAW で使われる Rubber Band Library を WebAssembly で組み込み。テンポを変えても音程は元のまま。
-• マルチサイト対応: Bandcamp / Beatport / Traxsource、さらに popup から任意のサイトを追加可能。
+• マルチサイト対応: Bandcamp / Beatport / Traxsource / Discogs（YouTube 試聴）、さらに popup から任意のサイトを追加可能。
 • CDJ 風の縦 TEMPO フェーダー（±6 / ±10 / ±16 / WIDE レンジ）。
 • BPM 表示: 手動 TAP、音声解析の AUTO 検知、Beatport / Traxsource はページから自動取得。
 • キーボードショートカット（, / . で微調整、Shift で粗調整、R リセット、M MASTER TEMPO、T タップ）とマウスホイール対応。
 • ヘッダーを掴んでパネルを移動可能（位置は記憶）。
 • 1 ページに複数 <audio> がある場合（試聴サンプルが複数並ぶレコード店ページ等）、全てに同時にテンポが反映されます。
+• Discogs では埋め込みの YouTube 試聴を直接制御 — DAW 級ピッチキープが YouTube 再生にも適用されます。
 
 対応サイト（ビルトイン）
 • Bandcamp
 • Beatport
 • Traxsource
+• Discogs（YouTube 試聴）
 
 その他のサイトの追加
 他の音楽サイトで拡張機能アイコンをクリックすると、そのサイトを追加できます。許可確認のあとテンポコントロールパネルが有効化されます。
@@ -143,4 +147,30 @@ https://github.com/XTAL-JP/tempo-slider
 
 ```
 https://github.com/XTAL-JP/tempo-slider/issues
+```
+
+## Version notes / バージョンごとの説明文
+
+各ストア（AMO / Chrome Web Store）の「このバージョンについて」「リリースノート」欄に貼るテキスト。
+
+### 0.10.0 — Discogs support
+
+#### English (AMO / Chrome Web Store)
+```
+Adds support for Discogs (discogs.com). The tempo control panel now appears on Discogs release pages and controls the embedded YouTube preview directly — DAW-grade MASTER TEMPO (pitch keep via Rubber Band Library) is applied to YouTube playback.
+
+For Firefox users upgrading from a previous version:
+Firefox treats newly added host permissions as optional, so the new Discogs / YouTube access is NOT auto-granted on upgrade. On your first visit to discogs.com after upgrading, click the extension icon and press the "Grant permission" button shown in the popup. After granting, reload the tab and the panel will appear automatically on subsequent visits.
+
+For new installs and Chrome users: no manual action required — permissions are granted as part of the normal install flow.
+```
+
+#### 日本語
+```
+Discogs (discogs.com) に対応しました。Discogs のリリースページでテンポコントロールパネルが表示され、埋め込みの YouTube 試聴を直接制御します。DAW 級 MASTER TEMPO（Rubber Band Library によるピッチキープ）が YouTube 再生にも適用されます。
+
+Firefox で既存バージョンからアップデートする方へ:
+Firefox では新規追加された host permissions は自動付与されない仕様のため、Discogs / YouTube への新規アクセス権限はアップデート時に自動では有効になりません。アップデート後はじめて discogs.com を開いた際、拡張機能アイコンをクリックし popup の「Grant permission」ボタンを押してください。承認後にタブがリロードされ、以降は通常通りパネルが自動で表示されます。
+
+新規インストール・Chrome ユーザーの方: 通常のインストール時に権限が付与されるため、特別な操作は不要です。
 ```

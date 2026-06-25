@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TEMPO Slider",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "description": "CDJ-style tempo / pitch keep / BPM controls for music playing in your browser.",
   "permissions": [
     "activeTab",
@@ -15,7 +15,10 @@
     "https://*.bcbits.com/*",
     "https://*.beatport.com/*",
     "https://*.traxsource.com/*",
-    "https://*.akamaized.net/*"
+    "https://*.akamaized.net/*",
+    "https://*.discogs.com/*",
+    "https://*.youtube.com/*",
+    "https://*.youtube-nocookie.com/*"
   ],
   "optional_host_permissions": [
     "https://*/*"
@@ -29,7 +32,8 @@
       "matches": [
         "https://*.bandcamp.com/*",
         "https://*.beatport.com/*",
-        "https://*.traxsource.com/*"
+        "https://*.traxsource.com/*",
+        "https://*.discogs.com/*"
       ],
       "js": ["content.js"],
       "css": ["panel.css"],
@@ -43,6 +47,15 @@
       "js": ["page-inject.js"],
       "run_at": "document_start",
       "world": "MAIN"
+    },
+    {
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://*.youtube-nocookie.com/*"
+      ],
+      "js": ["youtube-bridge.js"],
+      "run_at": "document_idle",
+      "all_frames": true
     }
   ],
   "web_accessible_resources": [
@@ -52,6 +65,9 @@
         "https://*.bandcamp.com/*",
         "https://*.beatport.com/*",
         "https://*.traxsource.com/*",
+        "https://*.discogs.com/*",
+        "https://*.youtube.com/*",
+        "https://*.youtube-nocookie.com/*",
         "https://*/*"
       ]
     }
