@@ -1,22 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
-  <defs>
-    <linearGradient id="bg2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1a1a1d"/>
-      <stop offset="100%" stop-color="#0f0f12"/>
-    </linearGradient>
-    <linearGradient id="thumb2" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#a0a0a8"/>
-      <stop offset="100%" stop-color="#3e3e44"/>
-    </linearGradient>
-  </defs>
-
-  <!-- 背景 -->
-  <rect width="128" height="128" rx="22" fill="url(#bg2)"/>
+  <!-- 角丸の濃いグレー背景 -->
+  <rect width="128" height="128" rx="22" fill="#15151a"/>
 
   <!-- レール（縦） -->
-  <rect x="58" y="14" width="12" height="100" rx="6" fill="rgba(255,255,255,0.18)"/>
+  <rect x="56" y="20" width="16" height="88" rx="8" fill="#3a3a42"/>
 
-  <!-- Thumb（大きく中央やや下） -->
-  <rect x="28" y="72" width="72" height="22" rx="4" fill="url(#thumb2)" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
-  <rect x="36" y="82" width="56" height="2" fill="rgba(0,0,0,0.5)"/>
+  <!-- 緑発光 Thumb（中央配置・大きく主役化） -->
+  <rect x="14" y="52" width="100" height="28" rx="6" fill="#3cff7a" stroke="#000000" stroke-width="3"/>
+
+  <!-- thumb 中央のグルーヴ（インジケータ線） -->
+  <rect x="32" y="64" width="64" height="4" rx="1" fill="#0a4d24"/>
 </svg>
