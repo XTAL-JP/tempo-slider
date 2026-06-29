@@ -5,3 +5,5 @@ node_modules/
 *.log
 src/_metadata/
 dist/
+video/
+.playwright-mcp/
