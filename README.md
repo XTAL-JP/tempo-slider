@@ -3,6 +3,7 @@
 A browser extension that adds CDJ-style tempo and pitch controls to music purchase sites.
 Listen to track previews at your **target BPM with master tempo (pitch keep)** while crate-digging.
 
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/khfoddahloneinahhnejjpjengdaglcl?label=Chrome%20Web%20Store&color=blue)](https://chromewebstore.google.com/detail/tempo-slider/khfoddahloneinahhnejjpjengdaglcl)
 [![Firefox Add-on](https://img.shields.io/amo/v/tempo-slider?label=Firefox%20Add-on&color=orange)](https://addons.mozilla.org/addon/tempo-slider/)
 
 ![icon](src/icons/icon-128.png)
@@ -26,6 +27,14 @@ Other sites: add any site dynamically via the toolbar popup ("+ Add this site").
 
 ## Install
 
+### Chrome / Edge (from Chrome Web Store)
+
+Install directly from the [Chrome Web Store](https://chromewebstore.google.com/detail/tempo-slider/khfoddahloneinahhnejjpjengdaglcl).
+
+### Firefox (from AMO)
+
+Install directly from [Firefox Add-ons](https://addons.mozilla.org/addon/tempo-slider/).
+
 ### Chrome / Edge (developer mode)
 
 1. Open `chrome://extensions/`
@@ -36,14 +45,6 @@ Other sites: add any site dynamically via the toolbar popup ("+ Add this site").
 
 1. Open `about:debugging#/runtime/this-firefox`
 2. Click "Load Temporary Add-on" and select `src/manifest.json`
-
-### Firefox (from AMO)
-
-Install directly from [Firefox Add-ons](https://addons.mozilla.org/addon/tempo-slider/).
-
-### Chrome / Edge
-
-Chrome Web Store submission pending review.
 
 ## Keyboard shortcuts
 
