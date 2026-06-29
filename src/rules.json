@@ -126,7 +126,8 @@
     },
     "condition": {
       "urlFilter": "||youtube.com/",
-      "resourceTypes": ["main_frame", "sub_frame"]
+      "resourceTypes": ["main_frame", "sub_frame"],
+      "excludedRequestDomains": ["studio.youtube.com"]
     }
   },
   {
