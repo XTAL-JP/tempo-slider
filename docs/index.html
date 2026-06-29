@@ -23,15 +23,22 @@
   header img { width: 96px; height: 96px; border-radius: 18px; }
   h1 { font-size: 40px; margin: 16px 0 8px; letter-spacing: 0.02em; }
   .tagline { color: rgba(255,255,255,0.7); font-size: 18px; margin: 0 0 24px; }
+  .cta-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-width: 460px;
+    margin: 0 auto;
+  }
   .cta {
-    display: inline-block;
+    display: block;
     padding: 12px 24px;
     background: #ff5050;
     color: #fff;
     border-radius: 4px;
     text-decoration: none;
     font-weight: 600;
-    margin: 4px;
+    text-align: center;
   }
   .cta.secondary {
     background: rgba(255,255,255,0.1);
@@ -72,10 +79,12 @@
   <img src="https://raw.githubusercontent.com/XTAL-JP/tempo-slider/main/src/icons/icon-128.png" alt="TEMPO Slider icon">
   <h1>TEMPO Slider</h1>
   <p class="tagline">CDJ-style tempo &amp; pitch keep controls for music purchase sites.</p>
-  <a class="cta chrome" href="https://chromewebstore.google.com/detail/tempo-slider/khfoddahloneinahhnejjpjengdaglcl">Get it for Chrome</a>
-  <a class="cta firefox" href="https://addons.mozilla.org/addon/tempo-slider/">Get it for Firefox</a>
-  <a class="cta" href="https://github.com/XTAL-JP/tempo-slider">View on GitHub</a>
-  <a class="cta secondary" href="privacy.html">Privacy Policy</a>
+  <div class="cta-grid">
+    <a class="cta chrome" href="https://chromewebstore.google.com/detail/tempo-slider/khfoddahloneinahhnejjpjengdaglcl">Get it for Chrome</a>
+    <a class="cta firefox" href="https://addons.mozilla.org/addon/tempo-slider/">Get it for Firefox</a>
+    <a class="cta" href="https://github.com/XTAL-JP/tempo-slider">View on GitHub</a>
+    <a class="cta secondary" href="privacy.html">Privacy Policy</a>
+  </div>
 </header>
 
 <main>
