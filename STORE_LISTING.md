@@ -15,24 +15,24 @@
 
 ### English (≤132 chars for Chrome Web Store)
 ```
-Pitch-preserving tempo control for DJs — across Bandcamp, Beatport, Traxsource, and any site you add. DAW-grade MASTER TEMPO.
+Pitch-preserving DJ tempo control on YouTube, Bandcamp, Discogs, Beatport, Traxsource — plus any site you add. DAW-grade.
 ```
 
 ### 日本語
 ```
-DJ向け、ピッチを保ったままテンポを変える MASTER TEMPO — Bandcamp / Beatport / Traxsource、任意の追加サイト対応。DAW級品質。
+DJ向け、ピッチを保ったままテンポを変える MASTER TEMPO — YouTube / Bandcamp / Discogs / Beatport / Traxsource ほか任意追加対応。DAW級。
 ```
 
 ## 概要 / Summary (AMO, ≤250 chars)
 
 ### English
 ```
-DAW-grade MASTER TEMPO (pitch preservation via Rubber Band Library) with a CDJ-style vertical fader. Works across Bandcamp, Beatport, Traxsource — and any site you add via the popup. Built for DJs and crate diggers who preview tracks at their target BPM across multiple music stores.
+CDJ-style vertical fader with DAW-grade MASTER TEMPO (Rubber Band Library). YouTube, Bandcamp, Discogs, Beatport, Traxsource — plus any site you add. For DJs and crate diggers previewing tracks at their target BPM.
 ```
 
 ### 日本語
 ```
-Rubber Band Library 採用の DAW 級 MASTER TEMPO（ピッチキープ）と CDJ 風縦フェーダー。Bandcamp / Beatport / Traxsource + popup から任意サイトを追加可能。複数ストアで目標 BPM の試聴を行う DJ・クレートディガー向け。
+Rubber Band Library 採用の DAW 級 MASTER TEMPO（ピッチキープ）と CDJ 風縦フェーダー。YouTube / Bandcamp / Discogs / Beatport / Traxsource + popup から任意サイトを追加可能。目標 BPM でトラック試聴したい DJ・クレートディガー向け。
 ```
 
 ## 詳細説明 / Detailed description
@@ -47,7 +47,7 @@ Other tempo extensions are usually single-site, and most just change playbackRat
 
 KEY FEATURES
 • MASTER TEMPO (pitch keep) — DAW-grade Rubber Band Library via WebAssembly. Change tempo while keeping the original key/pitch.
-• Multi-site: Bandcamp, Beatport, Traxsource, Discogs (YouTube previews) — plus any site you add via the popup.
+• Multi-site: YouTube, Bandcamp, Discogs, Beatport, Traxsource — plus any site you add via the popup.
 • CDJ-style vertical TEMPO fader with ±6 / ±10 / ±16 / WIDE range.
 • BPM display: manual TAP, audio-based AUTO detection, and DOM extraction on Beatport / Traxsource.
 • Keyboard shortcuts (, / . for fine adjust, Shift for coarse, R reset, M master, T tap) and mouse wheel on the fader.
@@ -56,16 +56,18 @@ KEY FEATURES
 • On Discogs, the panel controls the embedded YouTube preview directly — DAW-grade pitch keep applied to YouTube playback.
 
 SUPPORTED SITES (BUILT-IN)
+• YouTube (www.youtube.com — direct watch pages)
 • Bandcamp (bandcamp.com)
+• Discogs (discogs.com — YouTube previews on release pages)
 • Beatport (beatport.com)
 • Traxsource (traxsource.com)
-• Discogs (discogs.com — YouTube previews)
 
 ADDING YOUR OWN SITES
 Click the extension icon on any other music site to add it. The extension will request permission, then enable the tempo control panel.
 
 USE CASES
 • Preview tracks at your target mixing BPM across stores before purchasing
+• Practice mixing along to YouTube DJ sets at your own tempo
 • Slow down or speed up while keeping the original key — for transcription, vocal practice, or DJ prep
 • Tap to set source BPM and see live "current BPM" feedback as you move the fader
 
@@ -85,7 +87,7 @@ TEMPO Slider は、DJ・クレートディガー向けに DAW 級のピッチキ
 
 主な機能
 • MASTER TEMPO（ピッチキープ）— DAW で使われる Rubber Band Library を WebAssembly で組み込み。テンポを変えても音程は元のまま。
-• マルチサイト対応: Bandcamp / Beatport / Traxsource / Discogs（YouTube 試聴）、さらに popup から任意のサイトを追加可能。
+• マルチサイト対応: YouTube / Bandcamp / Discogs / Beatport / Traxsource、さらに popup から任意のサイトを追加可能。
 • CDJ 風の縦 TEMPO フェーダー（±6 / ±10 / ±16 / WIDE レンジ）。
 • BPM 表示: 手動 TAP、音声解析の AUTO 検知、Beatport / Traxsource はページから自動取得。
 • キーボードショートカット（, / . で微調整、Shift で粗調整、R リセット、M MASTER TEMPO、T タップ）とマウスホイール対応。
@@ -94,16 +96,18 @@ TEMPO Slider は、DJ・クレートディガー向けに DAW 級のピッチキ
 • Discogs では埋め込みの YouTube 試聴を直接制御 — DAW 級ピッチキープが YouTube 再生にも適用されます。
 
 対応サイト（ビルトイン）
+• YouTube（www.youtube.com — 動画視聴ページ）
 • Bandcamp
+• Discogs（リリースページの YouTube 試聴）
 • Beatport
 • Traxsource
-• Discogs（YouTube 試聴）
 
 その他のサイトの追加
 他の音楽サイトで拡張機能アイコンをクリックすると、そのサイトを追加できます。許可確認のあとテンポコントロールパネルが有効化されます。
 
 ユースケース
 • 複数ストアを横断して、購入前にミックス先の BPM でトラックを試聴
+• YouTube の DJ セットを自分のテンポに合わせて練習
 • キー（音程）を保ったまま速度を変更——耳コピ・ヴォーカル練習・DJ プレイ準備に
 • タップで原曲 BPM を設定 → フェーダー操作中の「現在 BPM」がリアルタイム表示
 
@@ -152,6 +156,26 @@ https://github.com/XTAL-JP/tempo-slider/issues
 ## Version notes / バージョンごとの説明文
 
 各ストア（AMO / Chrome Web Store）の「このバージョンについて」「リリースノート」欄に貼るテキスト。
+
+### 0.10.9 — YouTube support + upload-blocking bug fix
+
+#### English (AMO / Chrome Web Store)
+```
+New: YouTube (www.youtube.com) is now a first-class supported site. The tempo control panel appears on YouTube watch pages directly, with DAW-grade MASTER TEMPO (pitch keep) applied to the video's audio. studio.youtube.com, m.youtube.com, and music.youtube.com remain excluded so they keep working normally.
+
+Bug fix: If you previously added a site via "+ Add this site", an overly broad CORS-header rule could break credentialed XHR responses on that site — for example, YouTube Studio uploads getting stuck at 0%. The dynamic CORS rule is now scoped to media responses only (matching the static rules), and existing rules are migrated automatically when the extension starts.
+
+Safety: The "+ Add this site" button now refuses to add hostnames that are already covered by built-in support (bandcamp / beatport / traxsource / discogs / youtube / bcbits) or Google / CDN infrastructure (google.com / googleapis.com / googleusercontent.com / googlevideo.com / gstatic.com / akamaized.net). Any such entries left over from older versions are automatically removed on startup.
+```
+
+#### 日本語
+```
+新機能: YouTube (www.youtube.com) を正式サポートサイトに追加しました。YouTube の動画視聴ページで TEMPO Slider のパネルが直接表示され、DAW 級 MASTER TEMPO（ピッチキープ）が動画再生にも適用されます。studio.youtube.com / m.youtube.com / music.youtube.com は通常動作維持のため対象外。
+
+不具合修正: 「+ Add this site」で過去に追加したサイトについて、動的な CORS ヘッダールールの範囲が広すぎて認証付き XHR 応答を壊すケースがありました（例: YouTube Studio のアップロードが 0% で停止）。動的 CORS ルールを静的ルールと同じく media 応答のみに絞り、起動時に既存ルールを自動マイグレーションします。
+
+安全性向上: 「+ Add this site」ボタンは、すでに組み込み対応されているサイト（bandcamp / beatport / traxsource / discogs / youtube / bcbits）や Google / CDN インフラ（google.com / googleapis.com / googleusercontent.com / googlevideo.com / gstatic.com / akamaized.net）の追加を拒否するようになりました。古いバージョンで誤って追加されていた場合は起動時に自動的に削除されます。
+```
 
 ### 0.10.0 — Discogs support
 
