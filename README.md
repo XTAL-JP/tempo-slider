@@ -27,6 +27,15 @@ Built-in:
 
 Other sites: add any site dynamically via the toolbar popup ("+ Add this site"). Permission is requested on demand.
 
+### Not supported (DRM)
+
+The following services use browser-level DRM (EME / Widevine / FairPlay) on their audio streams, which blocks Web Audio API access. TEMPO Slider **cannot** process them, even when the embedded player is reachable as an iframe:
+
+- **Spotify** (`open.spotify.com/embed/...`) — Widevine
+- **Apple Music** (`embed.music.apple.com/...`) — FairPlay
+
+When digging on record-store pages that embed these players, look for the same track on Bandcamp / SoundCloud / YouTube — DRM-free previews work there.
+
 ## Install
 
 ### Chrome / Edge (from Chrome Web Store)
