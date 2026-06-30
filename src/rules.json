@@ -127,7 +127,8 @@
     "condition": {
       "urlFilter": "||youtube.com/",
       "resourceTypes": ["main_frame", "sub_frame"],
-      "excludedRequestDomains": ["studio.youtube.com"]
+      "excludedRequestDomains": ["studio.youtube.com"],
+      "excludedInitiatorDomains": ["studio.youtube.com"]
     }
   },
   {
