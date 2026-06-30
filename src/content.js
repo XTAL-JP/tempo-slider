@@ -10,6 +10,7 @@
   //   bandcamp: HTML <audio> 要素経由
   //   beatport / traxsource: Web Audio 直接再生（page-inject.js 経由で制御）
   //   discogs: YouTube iframe 埋め込み（youtube-bridge.js 経由で制御）
+  //   youtube: YouTube ページ自身（同一ウィンドウの youtube-bridge.js を bridge として使用）
   //   custom: ユーザーが popup から追加したサイト
   const SITE = (() => {
     const h = location.hostname;
@@ -17,6 +18,7 @@
     if (h.endsWith('traxsource.com')) return 'traxsource';
     if (h.endsWith('bandcamp.com')) return 'bandcamp';
     if (h.endsWith('discogs.com')) return 'discogs';
+    if (h === 'www.youtube.com') return 'youtube';
     return 'custom';
   })();
   // 組み込みサイトのホスト名マップ（無効化チェックに使用）
@@ -25,10 +27,13 @@
     beatport: 'beatport.com',
     traxsource: 'traxsource.com',
     discogs: 'discogs.com',
+    youtube: 'www.youtube.com',
   };
   const USES_PAGE_INJECT = (SITE === 'beatport' || SITE === 'traxsource');
   // YouTube iframe 経由のサイト
   const USES_IFRAME_BRIDGE = (SITE === 'discogs');
+  // YouTube ページ自身 — 同一ウィンドウの youtube-bridge.js を bridge として使用
+  const USES_SELF_BRIDGE = (SITE === 'youtube');
   const MSG_TAG = '__tempoSlider';
   const BRIDGE_MSG_TAG = '__tempoSliderBridge';
 
@@ -1169,9 +1174,17 @@
     // （custom サイトで両方が混在するページに対応するため）
     // - bandcamp/beatport/traxsource: ほぼ audio のみ → iframe 監視は no-op
     // - discogs: ほぼ iframe のみ → audio 監視は no-op
+    // - youtube: 同一ウィンドウの youtube-bridge.js が <video> を制御
     // - custom: 両方の可能性あり
     watchAudioChanges();
     watchBridgeIframes();
+    if (USES_SELF_BRIDGE) {
+      // YouTube ページ自身では <iframe> ではなくページ自身に youtube-bridge.js が
+      // 注入されているので、window 自体を擬似 bridge ターゲットとして登録する。
+      // 既存の postToBridge / trackBridgeIframe のコードは iframe.contentWindow を
+      // 使うので、{ contentWindow: window } を渡せばそのまま動く。
+      trackBridgeIframe({ contentWindow: window });
+    }
     // page-inject へ worklet URL を渡しておく（カスタムサイトを含めて
     // MASTER TEMPO 経路で worklet が必要になった時のため）
     postToPage('init', { workletUrl: ext.runtime.getURL('rubberband-worklet.js') });

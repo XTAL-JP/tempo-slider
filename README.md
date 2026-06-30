@@ -22,6 +22,8 @@ Built-in:
 - **Bandcamp**
 - **Beatport**
 - **Traxsource**
+- **Discogs**
+- **YouTube** (www.youtube.com — direct watch pages)
 
 Other sites: add any site dynamically via the toolbar popup ("+ Add this site"). Permission is requested on demand.
 
