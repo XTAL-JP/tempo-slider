@@ -157,6 +157,18 @@ https://github.com/XTAL-JP/tempo-slider/issues
 
 各ストア（AMO / Chrome Web Store）の「このバージョンについて」「リリースノート」欄に貼るテキスト。
 
+### 0.10.10 — Keyboard shortcut bug fix on Bandcamp search
+
+#### English (AMO / Chrome Web Store)
+```
+Bug fix: The keyboard shortcuts (R / M / T) were being intercepted when typing into search boxes on some sites — most notably the header search on Bandcamp — so letters could not be entered. The typing detection now traverses the event's composed path and recognises shadow-DOM inputs and ARIA textbox roles, so shortcuts stay disabled whenever you're typing into any text field.
+```
+
+#### 日本語
+```
+不具合修正: サイトの検索欄で文字を入力しようとすると、キーボードショートカット (R / M / T) が横取りしてしまい、これらの文字が入力欄に入らない不具合を修正しました（Bandcamp のヘッダー検索で特に顕著でした）。入力欄の判定を composedPath ベースに変更し、シャドウ DOM 内の input や ARIA textbox ロールを持つ要素にフォーカスがある場合もショートカットを無効化するようにしました。
+```
+
 ### 0.10.9 — YouTube support + upload-blocking bug fix
 
 #### English (AMO / Chrome Web Store)

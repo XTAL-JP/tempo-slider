@@ -1058,16 +1058,34 @@
   }
 
   // キーボードショートカット
-  // テキスト入力中 (input/textarea/contenteditable) は無効
-  function isTyping() {
-    const a = document.activeElement;
-    if (!a) return false;
-    const tag = a.tagName;
-    return tag === 'INPUT' || tag === 'TEXTAREA' || a.isContentEditable;
+  // テキスト入力中 (input/textarea/select/contenteditable/ARIA textbox 等) は無効。
+  // composedPath() を優先的に見るのは、Bandcamp のヘッダー検索や、
+  // シャドウ DOM を使うサイトの検索入力にフォーカスがある場合、
+  // 外側から document.activeElement を見てもラッパー要素しか取れず
+  // input を検出できないため。
+  function isEditableNode(node) {
+    if (!node || !node.tagName) return false;
+    const tag = node.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+    if (node.isContentEditable) return true;
+    if (tag === 'IFRAME') return true;
+    const role = node.getAttribute && node.getAttribute('role');
+    if (role === 'textbox' || role === 'searchbox' || role === 'combobox') return true;
+    return false;
+  }
+
+  function isTyping(e) {
+    if (e && typeof e.composedPath === 'function') {
+      const path = e.composedPath();
+      for (const node of path) {
+        if (isEditableNode(node)) return true;
+      }
+    }
+    return isEditableNode(document.activeElement);
   }
 
   document.addEventListener('keydown', (e) => {
-    if (isTyping()) return;
+    if (isTyping(e)) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return; // 修飾キーは Shift のみ許可
 
     let handled = true;
