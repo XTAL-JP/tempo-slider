@@ -409,37 +409,41 @@
 }
 
 /* ショートカット表示（BPM ブロックの下、上ボーダーで区切る） */
-#tempo-slider-panel .tempo-slider__shortcuts {
+/* アイソレーター（情報カラム内・常時表示。ノブ本体の .ts-knob は content.js 注入CSS） */
+#tempo-slider-panel .tempo-slider__iso {
   margin-top: 6px;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+#tempo-slider-panel .tempo-slider__iso-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+#tempo-slider-panel .tempo-slider__iso-title {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  text-align: left;
-  line-height: 1.6;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.6);
+}
+/* ISO 用 ON ボタンは共通 .fx-btn を継承しつつ、ラベルが短いので幅を詰める。
+   .fx-btn(flex:0 0 82px) より後勝ちさせるため子孫セレクタで詳細度を上げる。 */
+#tempo-slider-panel .tempo-slider__iso-head .tempo-slider__iso-btn {
+  flex: 0 0 auto;
+  padding: 4px 10px;
 }
 
-/* ステータス（ショートカットの下、メッセージがある時だけ表示） */
+/* ステータス（メッセージがある時だけ表示） */
 #tempo-slider-panel .tempo-slider__status {
   min-height: 14px;
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: 11px;
   color: rgba(255, 255, 255, 0.55);
   text-align: left;
 }
 #tempo-slider-panel .tempo-slider__status:empty {
   display: none;
-}
-#tempo-slider-panel .tempo-slider__shortcuts kbd {
-  display: inline-block;
-  padding: 1px 4px;
-  margin: 0 1px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 2px;
-  font-family: monospace;
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.7);
 }
 
 /* ============================================================

@@ -806,7 +806,7 @@
               <button data-range="16" class="tempo-slider__range-btn">±16</button>
               <button data-range="50" class="tempo-slider__range-btn">WIDE</button>
             </div>
-            <div class="tempo-slider__fader-area">
+            <div class="tempo-slider__fader-area" title="Shortcuts:  , / .  adjust (Shift = coarse)  ·  R reset  ·  M master  ·  T tap  ·  wheel">
               <div class="tempo-slider__fader-marks">
                 <span class="tempo-slider__mark">−</span>
                 <span class="tempo-slider__mark tempo-slider__mark--center">
@@ -844,9 +844,25 @@
                 <span class="tempo-slider__unit">BPM</span>
               </div>
             </div>
-            <div class="tempo-slider__shortcuts" title="Keyboard shortcuts">
-              <kbd>,</kbd><kbd>.</kbd> adjust (Shift = coarse)<br>
-              <kbd>R</kbd> reset / <kbd>M</kbd> master / <kbd>T</kbd> tap / wheel
+            <div class="tempo-slider__iso">
+              <div class="tempo-slider__iso-head">
+                <span class="tempo-slider__iso-title">ISOLATOR</span>
+                <button type="button" class="tempo-slider__fx-btn tempo-slider__iso-btn ts-fx-iso-on"><span class="tempo-slider__fx-led"></span>ON</button>
+              </div>
+              <div class="tempo-slider__iso-knobs">
+                <div class="ts-knob ts-fx-iso-low" title="LOW（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                  <div class="ts-knob__ring"><div class="ts-knob__dial"><span class="ts-knob__ind"></span></div></div>
+                  <span class="ts-knob__cap">LOW</span>
+                </div>
+                <div class="ts-knob ts-fx-iso-mid" title="MID（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                  <div class="ts-knob__ring"><div class="ts-knob__dial"><span class="ts-knob__ind"></span></div></div>
+                  <span class="ts-knob__cap">MID</span>
+                </div>
+                <div class="ts-knob ts-fx-iso-high" title="HIGH（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                  <div class="ts-knob__ring"><div class="ts-knob__dial"><span class="ts-knob__ind"></span></div></div>
+                  <span class="ts-knob__cap">HIGH</span>
+                </div>
+              </div>
             </div>
             <div class="tempo-slider__status"></div>
           </div>
@@ -854,21 +870,6 @@
         <div class="tempo-slider__fx">
           <button type="button" class="tempo-slider__fx-toggle" aria-expanded="false">FX <span class="tempo-slider__fx-caret">▸</span></button>
           <div class="tempo-slider__fx-panel" hidden>
-            <div class="tempo-slider__fx-row tempo-slider__fx-row--iso">
-              <button type="button" class="tempo-slider__fx-btn ts-fx-iso-on"><span class="tempo-slider__fx-led"></span>ISO</button>
-              <div class="ts-knob ts-fx-iso-low" title="LOW（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
-                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
-                <span class="ts-knob__cap">LOW</span>
-              </div>
-              <div class="ts-knob ts-fx-iso-mid" title="MID（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
-                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
-                <span class="ts-knob__cap">MID</span>
-              </div>
-              <div class="ts-knob ts-fx-iso-high" title="HIGH（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
-                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
-                <span class="ts-knob__cap">HIGH</span>
-              </div>
-            </div>
             <div class="tempo-slider__fx-row">
               <button type="button" class="tempo-slider__fx-btn ts-fx-filter-on"><span class="tempo-slider__fx-led"></span>FILTER</button>
               <span class="tempo-slider__fx-hint">LPF</span>
@@ -935,10 +936,30 @@
   function injectKnobStyles() {
     if (document.getElementById('tempo-slider-knob-style')) return;
     const css = `
-#tempo-slider-panel .tempo-slider__fx-row--iso { align-items: center; gap: 10px; }
+#tempo-slider-panel .tempo-slider__iso-knobs {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 6px; margin-top: 12px;
+  /* 目盛りが水平付近で ±7px ほどノブ枠外に張り出すため、左右にゆとりを取り
+     両端の LOW / HIGH を内側（MID 側）へ寄せる（箱外へのはみ出し防止） */
+  padding: 0 10px;
+}
 #tempo-slider-panel .ts-knob {
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   flex: 0 0 auto; cursor: ns-resize; touch-action: none; user-select: none;
+}
+/* ダイヤルを包む非回転リング。DJM 風の目盛りをこのリングに重ねる（ダイヤルは回転するため別レイヤー） */
+#tempo-slider-panel .ts-knob__ring { position: relative; width: 38px; height: 38px; }
+#tempo-slider-panel .ts-knob__ticks { position: absolute; inset: 0; pointer-events: none; }
+#tempo-slider-panel .ts-knob__tick {
+  position: absolute; left: 50%; top: 50%;
+  width: 2px; height: 2px; margin: -1px 0 0 -1px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.3);
+  transform-origin: center;
+}
+/* 可動域の両端（-135° / +135°）は長めのライン */
+#tempo-slider-panel .ts-knob__tick--end {
+  width: 2px; height: 6px; margin: -3px 0 0 -1px;
+  border-radius: 1px; background: rgba(255, 255, 255, 0.55);
 }
 #tempo-slider-panel .ts-knob__dial {
   position: relative; width: 38px; height: 38px; border-radius: 50%;
@@ -1253,7 +1274,15 @@
   // FX（DJM 風エフェクトユニット）UI 配線
   // ============================================================
   function bindFxEvents(panel) {
-    if (!state.fx) return; // fx-chain.js 未ロード環境ではセクションを無効化
+    if (!state.fx) {
+      // fx-chain.js 未ロード環境では FX セクションと常時表示のアイソレーターを隠す
+      // （配線されず操作できないため、ダミー表示にならないようにする）
+      for (const sel of ['.tempo-slider__fx', '.tempo-slider__iso']) {
+        const el = panel.querySelector(sel);
+        if (el) el.style.display = 'none';
+      }
+      return;
+    }
     const q = (sel) => panel.querySelector(sel);
 
     // FX セクションの開閉
@@ -1288,6 +1317,22 @@
       if (!el) return;
       const dial = el.querySelector('.ts-knob__dial');
       const DEG = 135; // 中央0 のとき ±135° まで回る
+      // DJM 風の目盛り（ドット＋両端ライン）を非回転リングに重ねて描画する。
+      // ノブの可動域 ±135°（計 270°）に沿って配置。両端は長いライン、中間はドット。
+      const ring = el.querySelector('.ts-knob__ring');
+      if (ring && !ring.querySelector('.ts-knob__ticks')) {
+        const ticks = document.createElement('div');
+        ticks.className = 'ts-knob__ticks';
+        const N = 11;
+        for (let i = 0; i < N; i++) {
+          const angle = -DEG + (2 * DEG / (N - 1)) * i; // -135 .. +135
+          const tick = document.createElement('span');
+          tick.className = 'ts-knob__tick' + ((i === 0 || i === N - 1) ? ' ts-knob__tick--end' : '');
+          tick.style.transform = `rotate(${angle}deg) translateY(-26px)`;
+          ticks.appendChild(tick);
+        }
+        ring.appendChild(ticks);
+      }
       const render = () => {
         const v = Math.max(-1, Math.min(1, get()));
         if (dial) dial.style.transform = `rotate(${v * DEG}deg)`;
