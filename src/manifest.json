@@ -36,7 +36,7 @@
         "https://*.discogs.com/*",
         "https://www.youtube.com/*"
       ],
-      "js": ["content.js"],
+      "js": ["fx-chain.js", "content.js"],
       "css": ["panel.css"],
       "run_at": "document_idle"
     },
@@ -54,7 +54,7 @@
         "https://www.youtube.com/*",
         "https://*.youtube-nocookie.com/*"
       ],
-      "js": ["youtube-bridge.js"],
+      "js": ["fx-chain.js", "youtube-bridge.js"],
       "run_at": "document_idle",
       "all_frames": true
     },
@@ -63,7 +63,7 @@
         "https://bandcamp.com/EmbeddedPlayer/*",
         "https://*.bandcamp.com/EmbeddedPlayer/*"
       ],
-      "js": ["bandcamp-bridge.js"],
+      "js": ["fx-chain.js", "bandcamp-bridge.js"],
       "run_at": "document_idle",
       "all_frames": true
     }

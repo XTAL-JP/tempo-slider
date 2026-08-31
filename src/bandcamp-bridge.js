@@ -33,8 +33,34 @@
   let audioCtx = null;
   let workletLoaded = false;
   // 要素ごとに Web Audio グラフを保持（複数 <audio> が存在しうる）
-  const graphs = new Map(); // HTMLAudioElement -> {source, worklet, gain}
+  const graphs = new Map(); // HTMLAudioElement -> {source, worklet, gain, fx}
   const hookedElements = new Set();
+  // FX（DJM 風エフェクトユニット）
+  let fxParams = null;
+  let fxBpm = null;
+
+  function fxActive() {
+    if (!fxParams) return false;
+    return fxParams.filter.on || fxParams.iso.on
+      || fxParams.echo.on || fxParams.trans.on || fxParams.flanger.on
+      || fxParams.reverb.on || fxParams.crush.on || fxParams.pitch.on;
+  }
+
+  // グラフの結線を一元管理: source →[worklet]→[fx]→ gain（gain→destination は生成時に接続済み）
+  function wireGraph(graph) {
+    if (!graph) return;
+    try { graph.source.disconnect(); } catch {}
+    if (graph.worklet) { try { graph.worklet.disconnect(); } catch {} }
+    if (graph.fx) { try { graph.fx.output.disconnect(); } catch {} }
+    let preFx = graph.source;
+    if (graph.worklet) { graph.source.connect(graph.worklet); preFx = graph.worklet; }
+    if (graph.fx) {
+      preFx.connect(graph.fx.input);
+      graph.fx.output.connect(graph.gain);
+    } else {
+      preFx.connect(graph.gain);
+    }
+  }
 
   function findAudioElements() {
     return Array.from(document.querySelectorAll('audio'));
@@ -106,11 +132,21 @@
       return null;
     }
     const gain = audioCtx.createGain();
-    const graph = { source, worklet: null, gain };
+    const graph = { source, worklet: null, gain, fx: null };
     graphs.set(el, graph);
-    source.connect(gain);
+    // FX チェーンを構築（失敗しても音が途切れないよう防御的に）
+    if (window.TempoSliderFX) {
+      try {
+        graph.fx = window.TempoSliderFX.create(audioCtx, { rubberbandReady: workletLoaded });
+        if (fxParams) graph.fx.setParams(fxParams, fxBpm);
+      } catch (e) {
+        console.warn('[TEMPO Slider bandcamp-bridge] FX チェーン生成失敗（FX なしで継続）:', e);
+        graph.fx = null;
+      }
+    }
     gain.connect(audioCtx.destination);
-    if (masterTempo) enableWorkletForGraph(graph);
+    if (masterTempo && workletLoaded) enableWorkletForGraph(graph);
+    else wireGraph(graph);
     return graph;
   }
 
@@ -120,20 +156,34 @@
       graph.worklet = new AudioWorkletNode(audioCtx, 'rubberband-processor');
       graph.worklet.port.postMessage(JSON.stringify(['quality', true]));
       graph.worklet.port.postMessage(JSON.stringify(['pitch', 1 / currentRate]));
-      try { graph.source.disconnect(); } catch {}
-      graph.source.connect(graph.worklet);
-      graph.worklet.connect(graph.gain);
     } catch (e) {
       console.warn('[TEMPO Slider bandcamp-bridge] worklet node create failed:', e);
+      graph.worklet = null;
     }
+    wireGraph(graph);
   }
 
   function disableWorkletForGraph(graph) {
-    if (!graph || !graph.worklet) return;
-    try { graph.source.disconnect(); } catch {}
-    try { graph.worklet.disconnect(); } catch {}
-    graph.worklet = null;
-    graph.source.connect(graph.gain);
+    if (!graph) return;
+    if (graph.worklet) {
+      try { graph.worklet.disconnect(); } catch {}
+      graph.worklet = null;
+    }
+    wireGraph(graph);
+  }
+
+  // FX パラメータ適用（必要ならグラフ構築）
+  async function setFx(fx, bpm) {
+    fxParams = fx;
+    if (typeof bpm === 'number') fxBpm = bpm;
+    if (fxActive() && graphs.size === 0) {
+      await ensureWorklet();
+      for (const el of hookedElements) await ensureGraphForElement(el);
+    }
+    for (const g of graphs.values()) {
+      if (g.fx) g.fx.setParams(fxParams, fxBpm);
+    }
+    return true;
   }
 
   async function setMasterTempo(on) {
@@ -184,21 +234,30 @@
         const ok = await setMasterTempo(!!data.on);
         try {
           e.source.postMessage(
-            { [MSG_TAG]: true, type: 'masterTempoResult', ok },
+            JSON.stringify({ [MSG_TAG]: true, type: 'masterTempoResult', ok }),
             e.origin
           );
         } catch {}
         break;
       }
+      case 'setFx':
+        if (data.fx) { await setFx(data.fx, typeof data.bpm === 'number' ? data.bpm : undefined); }
+        break;
+      case 'setFxBpm':
+        if (typeof data.bpm === 'number') {
+          fxBpm = data.bpm;
+          for (const g of graphs.values()) { if (g.fx) g.fx.updateBpm(fxBpm); }
+        }
+        break;
       case 'ping':
         try {
           e.source.postMessage(
-            {
+            JSON.stringify({
               [MSG_TAG]: true, type: 'pong',
               hookedAudio: hookedElements.size,
               graphs: graphs.size,
               currentRate, masterTempo
-            },
+            }),
             e.origin
           );
         } catch {}
@@ -216,7 +275,7 @@
   // 親フレームに自分の存在を通知し、現在のテンポ／MASTER TEMPO 状態をもらう
   try {
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ [MSG_TAG]: true, type: 'bridgeReady' }, '*');
+      window.parent.postMessage(JSON.stringify({ [MSG_TAG]: true, type: 'bridgeReady' }), '*');
       console.log('[TEMPO Slider bandcamp-bridge] sent bridgeReady to parent');
     }
   } catch {}

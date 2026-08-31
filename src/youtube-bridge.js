@@ -3,8 +3,8 @@
 // YouTube iframe（discogs 等の埋め込み元から呼ばれる）内で動作。
 // 親フレームから postMessage で受けたコマンドに従い、
 //   - video.playbackRate でテンポ変更
-//   - MASTER TEMPO 時は AudioContext + Rubber Band Worklet でピッチキープ
-// を実行する。
+//   - MASTER TEMPO 時は video.preservesPitch（ブラウザ標準）でピッチキープ
+// を実行する。FX（DJM 風エフェクト）使用時のみ AudioContext + Web Audio グラフを構築する。
 
 (() => {
   'use strict';
@@ -31,11 +31,22 @@
   let masterTempo = false;
   let audioCtx = null;
   let sourceNode = null;
-  let workletNode = null;
   let gainNode = null;
   let workletLoaded = false;
   let graphedVideo = null;
   let observedVideo = null;
+  // FX（DJM 風エフェクトユニット）
+  let fxChain = null;
+  let fxParams = null;
+  let fxBpm = null;
+
+  // FX に有効なエフェクトが 1 つでもあるか（グラフ構築要否の判定）
+  function fxActive() {
+    if (!fxParams) return false;
+    return fxParams.filter.on || fxParams.iso.on
+      || fxParams.echo.on || fxParams.trans.on || fxParams.flanger.on
+      || fxParams.reverb.on || fxParams.crush.on || fxParams.pitch.on;
+  }
 
   function getVideo() {
     return document.querySelector('video');
@@ -46,9 +57,13 @@
   function applyRate(video) {
     if (!video) return false;
     try {
-      // MASTER TEMPO OFF 時はブラウザ標準のピッチキープを切り、
-      // バイナル風の挙動にする（CDJ 非 MASTER TEMPO 仕様に合わせる）
-      if (video.preservesPitch !== false) video.preservesPitch = false;
+      // MASTER TEMPO のピッチキープはブラウザ標準の preservesPitch で行う（native 方式）。
+      //   ON  → preservesPitch=true（テンポだけ変えピッチ維持＝MASTER TEMPO）
+      //   OFF → preservesPitch=false（バイナル風にピッチも上下＝CDJ 非 MASTER TEMPO）
+      // rubberband worklet + createMediaElementSource 経路は Firefox で無音になることがあり、
+      // native 方式なら全ブラウザで確実に音が出る。
+      const want = !!masterTempo;
+      if (video.preservesPitch !== want) video.preservesPitch = want;
     } catch {}
     let changed = false;
     try {
@@ -100,6 +115,16 @@
       sourceNode = audioCtx.createMediaElementSource(video);
       gainNode = audioCtx.createGain();
       graphedVideo = video;
+      // FX チェーンを 1 度だけ構築（失敗しても音が途切れないよう防御的に）
+      if (!fxChain && window.TempoSliderFX) {
+        try {
+          fxChain = window.TempoSliderFX.create(audioCtx, { rubberbandReady: workletLoaded });
+          if (fxParams) fxChain.setParams(fxParams, fxBpm);
+        } catch (e) {
+          console.warn('[TEMPO Slider bridge] FX チェーン生成失敗（FX なしで継続）:', e);
+          fxChain = null;
+        }
+      }
       rebuildGraph();
       return true;
     } catch (e) {
@@ -108,45 +133,45 @@
     }
   }
 
+  // グラフは FX 専用。MASTER TEMPO のピッチキープは preservesPitch（native）で行うため
+  // ここでは rubberband worklet を挿入しない（Firefox 無音対策）。
   function rebuildGraph() {
     if (!sourceNode) return;
     try { sourceNode.disconnect(); } catch {}
     try { gainNode.disconnect(); } catch {}
-    if (workletNode) {
-      try { workletNode.disconnect(); } catch {}
-      workletNode = null;
-    }
+    if (fxChain) { try { fxChain.output.disconnect(); } catch {} }
 
     gainNode.gain.setValueAtTime(1.0, audioCtx.currentTime);
 
-    if (masterTempo && workletLoaded) {
-      try {
-        workletNode = new AudioWorkletNode(audioCtx, 'rubberband-processor');
-        workletNode.port.postMessage(JSON.stringify(['quality', true]));
-        workletNode.port.postMessage(JSON.stringify(['pitch', 1 / currentRate]));
-        sourceNode.connect(workletNode);
-        workletNode.connect(gainNode);
-      } catch (e) {
-        console.warn('[TEMPO Slider bridge] worklet node create failed:', e);
-        sourceNode.connect(gainNode);
-      }
+    if (fxChain) {
+      sourceNode.connect(fxChain.input);
+      fxChain.output.connect(gainNode);
     } else {
       sourceNode.connect(gainNode);
     }
     gainNode.connect(audioCtx.destination);
   }
 
-  async function setMasterTempo(on) {
-    if (on === masterTempo) return true;
-    if (on) {
+  // FX パラメータ適用（必要ならグラフ構築）
+  async function setFx(fx, bpm) {
+    fxParams = fx;
+    if (typeof bpm === 'number') fxBpm = bpm;
+    // FX に有効なものがあり、まだグラフが無ければ構築する（masterTempo OFF でも FX を効かせる）
+    if (fxActive() && !fxChain) {
       const ok = await ensureGraph();
       if (!ok) return false;
-      masterTempo = true;
-      rebuildGraph();
-    } else {
-      masterTempo = false;
-      if (sourceNode) rebuildGraph();
     }
+    if (fxChain) fxChain.setParams(fxParams, fxBpm);
+    return true;
+  }
+
+  async function setMasterTempo(on) {
+    if (on === masterTempo) return true;
+    // native 方式: preservesPitch を切り替えるだけ。Web Audio グラフ（FX 用）は不要で、
+    // FX が有効なときのグラフはそのまま流用できる（preservesPitch は取り込み前の
+    // デコード段に効くため、グラフ経由でも native ピッチキープが有効になる）。
+    masterTempo = !!on;
+    applyRate(getVideo());
     return true;
   }
 
@@ -185,26 +210,33 @@
       case 'setRate':
         if (typeof data.rate === 'number' && isFinite(data.rate) && data.rate > 0) {
           currentRate = data.rate;
+          // テンポ反映＋ preservesPitch（MASTER TEMPO のピッチキープ）を native に適用
           applyRate(getVideo());
-          if (masterTempo && workletNode) {
-            workletNode.port.postMessage(JSON.stringify(['pitch', 1 / currentRate]));
-          }
         }
         break;
       case 'setMasterTempo': {
         const ok = await setMasterTempo(!!data.on);
         try {
           e.source.postMessage(
-            { [MSG_TAG]: true, type: 'masterTempoResult', ok },
+            JSON.stringify({ [MSG_TAG]: true, type: 'masterTempoResult', ok }),
             e.origin
           );
         } catch (err) {}
         break;
       }
+      case 'setFx':
+        if (data.fx) { await setFx(data.fx, typeof data.bpm === 'number' ? data.bpm : undefined); }
+        break;
+      case 'setFxBpm':
+        if (typeof data.bpm === 'number') {
+          fxBpm = data.bpm;
+          if (fxChain) fxChain.updateBpm(fxBpm);
+        }
+        break;
       case 'ping':
         try {
           e.source.postMessage(
-            { [MSG_TAG]: true, type: 'pong', hasVideo: !!getVideo(), currentRate, masterTempo },
+            JSON.stringify({ [MSG_TAG]: true, type: 'pong', hasVideo: !!getVideo(), currentRate, masterTempo }),
             e.origin
           );
         } catch (err) {}
@@ -223,7 +255,7 @@
   // （新規 iframe 出現や src 変更でリロードされた場合のステート同期用）
   try {
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ [MSG_TAG]: true, type: 'bridgeReady' }, '*');
+      window.parent.postMessage(JSON.stringify({ [MSG_TAG]: true, type: 'bridgeReady' }), '*');
       console.log('[TEMPO Slider bridge] sent bridgeReady to parent');
     }
   } catch {}

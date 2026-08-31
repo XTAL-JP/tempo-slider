@@ -61,6 +61,9 @@
     bpmDetector: null,
     // iframe bridge 用（discogs 等の YouTube 埋め込みサイト）
     bridgeIframes: new Set(),
+    // FX（DJM 風エフェクトユニット）
+    fxChain: null,                              // FxChain インスタンス（直接経路）
+    fx: (window.TempoSliderFX && window.TempoSliderFX.defaultParams()) || null,
   };
 
   function findAudioElements() {
@@ -84,11 +87,23 @@
   // 後方互換用エイリアス
   const findYoutubeIframes = findBridgeIframes;
 
+  // bridge 宛メッセージのパース。
+  // Firefox ではコンテンツスクリプトから「別オリジンの iframe（discogs → YouTube 埋め込み）」へ
+  // オブジェクトのまま postMessage すると、受信側で構造化クローンが読めず取りこぼされることがある。
+  // そのため bridge との送受信は必ず JSON 文字列に統一する（後方互換でオブジェクトも受理）。
+  function parseBridgeMsg(data) {
+    if (data == null) return null;
+    if (typeof data === 'string') {
+      try { return JSON.parse(data); } catch { return null; }
+    }
+    return data;
+  }
+
   function postToBridge(iframe, type, payload) {
     if (!iframe || !iframe.contentWindow) return;
     try {
       iframe.contentWindow.postMessage(
-        Object.assign({ [BRIDGE_MSG_TAG]: true, type }, payload || {}),
+        JSON.stringify(Object.assign({ [BRIDGE_MSG_TAG]: true, type }, payload || {})),
         '*'
       );
     } catch (e) {}
@@ -97,18 +112,22 @@
   function trackBridgeIframe(iframe) {
     if (!iframe || state.bridgeIframes.has(iframe)) return;
     state.bridgeIframes.add(iframe);
-    // 既存のテンポを即時反映
-    postToBridge(iframe, 'setRate', { rate: state.tempoRatio });
-    if (state.masterTempo) {
-      postToBridge(iframe, 'setMasterTempo', { on: true });
-    }
-    // src が変化したら（次曲読み込み等）再度反映
-    const obs = new MutationObserver(() => {
+    // 現在のテンポ / MASTER TEMPO を反映。
+    // iframe 挿入直後は中の youtube-bridge.js がまだ読み込まれておらず、
+    // 最初の postMessage が取りこぼされることがある（特に Firefox の別オリジン iframe）。
+    // bridgeReady 通知待ちだけに頼らず、数回リトライして bridge 読込後にも確実に届くようにする。
+    const push = () => {
       postToBridge(iframe, 'setRate', { rate: state.tempoRatio });
       if (state.masterTempo) {
         postToBridge(iframe, 'setMasterTempo', { on: true });
       }
-    });
+      // 現在の FX 状態も反映（有効なエフェクトがある場合のみグラフ構築を促す）
+      if (state.fx) postToBridge(iframe, 'setFx', { fx: state.fx, bpm: currentHeardBpm() });
+    };
+    push();
+    for (const ms of [150, 500, 1200, 2500]) setTimeout(push, ms);
+    // src が変化したら（次曲読み込み等）再度反映
+    const obs = new MutationObserver(() => push());
     try { obs.observe(iframe, { attributes: true, attributeFilter: ['src'] }); } catch {}
   }
 
@@ -161,20 +180,31 @@
     // 各 iframe 内の youtube-bridge.js が起動した際に発火する 'bridgeReady' を受け取り
     // 現在のテンポ／MASTER TEMPO 状態を即座に同期する（iframe リロード時の再同期用）
     window.addEventListener('message', (e) => {
-      if (!e.data || e.data[BRIDGE_MSG_TAG] !== true) return;
-      if (e.data.type !== 'bridgeReady') return;
-      try {
-        e.source.postMessage(
-          { [BRIDGE_MSG_TAG]: true, type: 'setRate', rate: state.tempoRatio },
-          '*'
-        );
-        if (state.masterTempo) {
+      const data = parseBridgeMsg(e.data);
+      if (!data || data[BRIDGE_MSG_TAG] !== true) return;
+      if (data.type !== 'bridgeReady') return;
+      // 追跡済みの全 iframe に現在値を再送（要素参照経由なので e.source に依存しない）。
+      // MutationObserver が iframe 挿入時に登録済みなので、通常はここで確実に反映される。
+      for (const iframe of state.bridgeIframes) {
+        postToBridge(iframe, 'setRate', { rate: state.tempoRatio });
+        if (state.masterTempo) postToBridge(iframe, 'setMasterTempo', { on: true });
+        if (state.fx) postToBridge(iframe, 'setFx', { fx: state.fx, bpm: currentHeardBpm() });
+      }
+      // 未追跡の iframe から来た場合の保険として送信元にも直接返信
+      if (e.source) {
+        try {
           e.source.postMessage(
-            { [BRIDGE_MSG_TAG]: true, type: 'setMasterTempo', on: true },
+            JSON.stringify({ [BRIDGE_MSG_TAG]: true, type: 'setRate', rate: state.tempoRatio }),
             '*'
           );
-        }
-      } catch {}
+          if (state.masterTempo) {
+            e.source.postMessage(
+              JSON.stringify({ [BRIDGE_MSG_TAG]: true, type: 'setMasterTempo', on: true }),
+              '*'
+            );
+          }
+        } catch {}
+      }
     });
   }
 
@@ -360,6 +390,17 @@
       state.sourceNode = state.audioCtx.createMediaElementSource(target);
       state.gainNode = state.audioCtx.createGain();
       state.graphedElement = target;
+      // FX チェーンを 1 度だけ構築（以降は rebuildGraph で結線し直すだけ）。
+      // 生成に失敗しても音が途切れないよう防御的に（fxChain=null なら FX なしで素通し）。
+      if (!state.fxChain && window.TempoSliderFX) {
+        try {
+          state.fxChain = window.TempoSliderFX.create(state.audioCtx, { rubberbandReady: state.workletLoaded });
+          if (state.fx) state.fxChain.setParams(state.fx, state.originalBpm);
+        } catch (e) {
+          console.warn('[TEMPO Slider] FX チェーン生成失敗（FX なしで継続）:', e);
+          state.fxChain = null;
+        }
+      }
       rebuildGraph();
       return true;
     } catch (e) {
@@ -373,6 +414,7 @@
 
     try { state.sourceNode.disconnect(); } catch {}
     try { state.gainNode.disconnect(); } catch {}
+    if (state.fxChain) { try { state.fxChain.output.disconnect(); } catch {} }
     if (state.workletNode) {
       try { state.workletNode.disconnect(); } catch {}
       state.workletNode = null;
@@ -380,6 +422,8 @@
 
     state.gainNode.gain.setValueAtTime(1.0, state.audioCtx.currentTime);
 
+    // masterTempo worklet があればその出力、なければ source を「pre-FX ノード」とする
+    let preFx = state.sourceNode;
     if (state.masterTempo && state.workletLoaded) {
       try {
         state.workletNode = new AudioWorkletNode(state.audioCtx, 'rubberband-processor');
@@ -395,13 +439,19 @@
         state.workletNode.port.postMessage(JSON.stringify(['pitch', 1 / state.tempoRatio]));
 
         state.sourceNode.connect(state.workletNode);
-        state.workletNode.connect(state.gainNode);
+        preFx = state.workletNode;
       } catch (e) {
         console.warn('[TEMPO Slider] worklet ノード作成失敗:', e);
-        state.sourceNode.connect(state.gainNode);
+        preFx = state.sourceNode;
       }
+    }
+
+    // preFx → [FX チェーン] → gainNode → destination
+    if (state.fxChain) {
+      preFx.connect(state.fxChain.input);
+      state.fxChain.output.connect(state.gainNode);
     } else {
-      state.sourceNode.connect(state.gainNode);
+      preFx.connect(state.gainNode);
     }
     state.gainNode.connect(state.audioCtx.destination);
 
@@ -432,8 +482,35 @@
     }
     updateTempoDisplay();
     updateCurrentBpmDisplay();
+    // テンポが変わると「聞こえる BPM」も変わるので beat-sync FX を追従させる
+    if (state.fxChain) state.fxChain.updateBpm(currentHeardBpm());
+    for (const iframe of state.bridgeIframes) {
+      postToBridge(iframe, 'setFxBpm', { bpm: currentHeardBpm() });
+    }
     if (panelRefs && panelRefs.updateFaderThumb) {
       panelRefs.updateFaderThumb();
+    }
+  }
+
+  // beat-sync FX が同期すべき「実際に耳に届く BPM」= 原曲 BPM × テンポ比率。
+  function currentHeardBpm() {
+    return state.originalBpm ? state.originalBpm * state.tempoRatio : null;
+  }
+
+  // FX パラメータ（state.fx）を直接経路の FxChain と全 bridge へ反映する。
+  // FX を有効にするには Web Audio グラフが必要なので、無ければ構築を試みる。
+  async function applyFx() {
+    if (!state.fx) return;
+    // 直接経路: グラフ未構築なら試みる（試聴要素があるページのみ成功）
+    if (!state.fxChain && state.activeElement) {
+      await ensureGraph();
+    }
+    if (state.fxChain) {
+      state.fxChain.setParams(state.fx, currentHeardBpm());
+    }
+    // bridge 経路（YouTube / Bandcamp 埋め込み）へ送信
+    for (const iframe of state.bridgeIframes) {
+      postToBridge(iframe, 'setFx', { fx: state.fx, bpm: currentHeardBpm() });
     }
   }
 
@@ -446,11 +523,12 @@
       let done = false;
       const handler = (e) => {
         if (e.source !== iframe.contentWindow) return;
-        if (!e.data || e.data[BRIDGE_MSG_TAG] !== true) return;
-        if (e.data.type !== 'masterTempoResult') return;
+        const data = parseBridgeMsg(e.data);
+        if (!data || data[BRIDGE_MSG_TAG] !== true) return;
+        if (data.type !== 'masterTempoResult') return;
         done = true;
         window.removeEventListener('message', handler);
-        resolve(!!e.data.ok);
+        resolve(!!data.ok);
       };
       window.addEventListener('message', handler);
       postToBridge(iframe, 'setMasterTempo', { on });
@@ -676,6 +754,11 @@
     state.originalBpm = bpm;
     if (panelRefs && bpm) panelRefs.originalInput.value = String(bpm);
     updateCurrentBpmDisplay();
+    // beat-sync FX に新しい BPM を反映
+    if (state.fxChain) state.fxChain.updateBpm(currentHeardBpm());
+    for (const iframe of state.bridgeIframes) {
+      postToBridge(iframe, 'setFxBpm', { bpm: currentHeardBpm() });
+    }
   }
 
   function adjustTempo(delta) {
@@ -768,13 +851,116 @@
             <div class="tempo-slider__status"></div>
           </div>
         </div>
+        <div class="tempo-slider__fx">
+          <button type="button" class="tempo-slider__fx-toggle" aria-expanded="false">FX <span class="tempo-slider__fx-caret">▸</span></button>
+          <div class="tempo-slider__fx-panel" hidden>
+            <div class="tempo-slider__fx-row tempo-slider__fx-row--iso">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-iso-on"><span class="tempo-slider__fx-led"></span>ISO</button>
+              <div class="ts-knob ts-fx-iso-low" title="LOW（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
+                <span class="ts-knob__cap">LOW</span>
+              </div>
+              <div class="ts-knob ts-fx-iso-mid" title="MID（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
+                <span class="ts-knob__cap">MID</span>
+              </div>
+              <div class="ts-knob ts-fx-iso-high" title="HIGH（中央=0dB / 下げてキル・上げて +6dB ブースト）。ドラッグで回す / ダブルクリックで0">
+                <div class="ts-knob__dial"><span class="ts-knob__ind"></span></div>
+                <span class="ts-knob__cap">HIGH</span>
+              </div>
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-filter-on"><span class="tempo-slider__fx-led"></span>FILTER</button>
+              <span class="tempo-slider__fx-hint">LPF</span>
+              <input type="range" class="ts-fx ts-fx-filter" min="-100" max="100" value="0" title="LPF ← → HPF" />
+              <span class="tempo-slider__fx-hint">HPF</span>
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-echo-on"><span class="tempo-slider__fx-led"></span>ECHO</button>
+              <select class="tempo-slider__fx-sel ts-fx-echo-div" title="Beat division">
+                <option value="0.5">1/8</option><option value="1" selected>1/4</option>
+                <option value="2">1/2</option><option value="3">3/4</option><option value="4">1/1</option>
+              </select>
+              <input type="range" class="ts-fx ts-fx-echo-depth" min="0" max="100" value="40" title="Depth" />
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-reverb-on"><span class="tempo-slider__fx-led"></span>REVERB</button>
+              <input type="range" class="ts-fx ts-fx-reverb-depth" min="0" max="100" value="35" title="Depth" />
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-trans-on"><span class="tempo-slider__fx-led"></span>TRANS</button>
+              <select class="tempo-slider__fx-sel ts-fx-trans-div" title="Beat division">
+                <option value="0.25">1/16</option><option value="0.5" selected>1/8</option>
+                <option value="1">1/4</option><option value="2">1/2</option>
+              </select>
+              <input type="range" class="ts-fx ts-fx-trans-depth" min="0" max="100" value="90" title="Depth" />
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-flanger-on"><span class="tempo-slider__fx-led"></span>FLANGER</button>
+              <select class="tempo-slider__fx-sel ts-fx-flanger-div" title="LFO period (beats)">
+                <option value="2">2</option><option value="4" selected>4</option>
+                <option value="8">8</option><option value="16">16</option>
+              </select>
+              <input type="range" class="ts-fx ts-fx-flanger-depth" min="0" max="100" value="50" title="Depth" />
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-crush-on"><span class="tempo-slider__fx-led"></span>CRUSH</button>
+              <select class="tempo-slider__fx-sel ts-fx-crush-bits" title="Bit depth">
+                <option value="3">3bit</option><option value="4">4bit</option>
+                <option value="6" selected>6bit</option><option value="8">8bit</option>
+              </select>
+              <input type="range" class="ts-fx ts-fx-crush-depth" min="0" max="100" value="60" title="Mix" />
+            </div>
+            <div class="tempo-slider__fx-row">
+              <button type="button" class="tempo-slider__fx-btn ts-fx-pitch-on"><span class="tempo-slider__fx-led"></span>PITCH</button>
+              <input type="range" class="ts-fx ts-fx-pitch-semi" min="-12" max="12" value="0" step="1" title="Semitones" />
+              <span class="tempo-slider__fx-val ts-fx-pitch-val">0</span>
+            </div>
+          </div>
+        </div>
       </div>
     `;
     document.body.appendChild(panel);
 
     // panel.css は manifest の content_scripts.css 経由でブラウザが既に注入済みなので
     // ここで <link> を追加する必要はない（カスタムサイトでも WAR/CSP に依存せず確実に適用される）
+    // ただし ISO ツマミの CSS だけは content.js から直接注入する（下記参照）。
+    injectKnobStyles();
     bindPanelEvents(panel);
+  }
+
+  // ISO ツマミ（.ts-knob 系）の CSS を <style> でページに直接注入する。
+  // Firefox はアドオン再読込時に content_scripts.css(panel.css) を再注入しないことがあり、
+  // JS だけ更新されて CSS が古いままになる。JS は確実に更新されるので、ここから注入すれば齟齬が起きない。
+  function injectKnobStyles() {
+    if (document.getElementById('tempo-slider-knob-style')) return;
+    const css = `
+#tempo-slider-panel .tempo-slider__fx-row--iso { align-items: center; gap: 10px; }
+#tempo-slider-panel .ts-knob {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 0 0 auto; cursor: ns-resize; touch-action: none; user-select: none;
+}
+#tempo-slider-panel .ts-knob__dial {
+  position: relative; width: 38px; height: 38px; border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #45454c 0%, #2a2a2e 70%, #1c1c20 100%);
+  border: 1px solid rgba(0, 0, 0, 0.6);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+  transform: rotate(0deg);
+}
+#tempo-slider-panel .ts-knob__ind {
+  position: absolute; left: 50%; top: 3px; width: 2px; height: 13px;
+  margin-left: -1px; border-radius: 1px; background: #cfd2d6;
+}
+#tempo-slider-panel .ts-knob.is-off-center .ts-knob__ind {
+  background: #ffa020; box-shadow: 0 0 6px rgba(255, 160, 32, 0.9);
+}
+#tempo-slider-panel .ts-knob.is-active .ts-knob__dial { border-color: rgba(127, 214, 255, 0.5); }
+#tempo-slider-panel .ts-knob__cap { font-size: 9px; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.6); }
+`;
+    const style = document.createElement('style');
+    style.id = 'tempo-slider-knob-style';
+    style.textContent = css;
+    (document.head || document.documentElement).appendChild(style);
   }
 
   // ============================================================
@@ -976,6 +1162,10 @@
       const v = parseInt(originalInput.value, 10);
       state.originalBpm = (v && v > 0) ? v : null;
       updateCurrentBpmDisplay();
+      if (state.fxChain) state.fxChain.updateBpm(currentHeardBpm());
+      for (const iframe of state.bridgeIframes) {
+        postToBridge(iframe, 'setFxBpm', { bpm: currentHeardBpm() });
+      }
     });
 
     tapBtn.addEventListener('click', () => {
@@ -1053,8 +1243,129 @@
       toggleBtn.textContent = collapsed ? '−' : '+';
     });
 
+    bindFxEvents(panel);
+
     setupPanelDrag(panel);
     updateTempoDisplay();
+  }
+
+  // ============================================================
+  // FX（DJM 風エフェクトユニット）UI 配線
+  // ============================================================
+  function bindFxEvents(panel) {
+    if (!state.fx) return; // fx-chain.js 未ロード環境ではセクションを無効化
+    const q = (sel) => panel.querySelector(sel);
+
+    // FX セクションの開閉
+    const fxToggle = q('.tempo-slider__fx-toggle');
+    const fxPanel  = q('.tempo-slider__fx-panel');
+    const caret    = q('.tempo-slider__fx-caret');
+    fxToggle.addEventListener('click', () => {
+      const open = fxPanel.hasAttribute('hidden');
+      if (open) { fxPanel.removeAttribute('hidden'); caret.textContent = '▾'; fxToggle.setAttribute('aria-expanded', 'true'); }
+      else { fxPanel.setAttribute('hidden', ''); caret.textContent = '▸'; fxToggle.setAttribute('aria-expanded', 'false'); }
+    });
+
+    // on/off ボタン共通ハンドラ
+    const bindToggle = (sel, key) => {
+      const btn = q(sel);
+      if (!btn) return;
+      btn.addEventListener('click', () => {
+        state.fx[key].on = !state.fx[key].on;
+        btn.classList.toggle('is-on', state.fx[key].on);
+        applyFx();
+      });
+    };
+    // range/select 共通ハンドラ
+    const bindRange = (sel, setter) => {
+      const el = q(sel);
+      if (!el) return;
+      el.addEventListener('input', () => { setter(el.value); applyFx(); });
+    };
+    // ロータリーツマミ（DJ 機材風）: 縦ドラッグ／ホイールで -1..+1、ダブルクリックで 0。
+    // get/set は値域 -1..+1。set 内で applyFx を呼ぶ想定。
+    const bindKnob = (el, get, set) => {
+      if (!el) return;
+      const dial = el.querySelector('.ts-knob__dial');
+      const DEG = 135; // 中央0 のとき ±135° まで回る
+      const render = () => {
+        const v = Math.max(-1, Math.min(1, get()));
+        if (dial) dial.style.transform = `rotate(${v * DEG}deg)`;
+        el.classList.toggle('is-off-center', Math.abs(v) > 0.02);
+      };
+      render();
+      let dragging = false, startY = 0, startV = 0;
+      el.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        dragging = true; startY = e.clientY; startV = get();
+        try { el.setPointerCapture(e.pointerId); } catch {}
+        el.classList.add('is-active');
+      });
+      el.addEventListener('pointermove', (e) => {
+        if (!dragging) return;
+        // 120px 動かして片側フルレンジ（Shift で微調整）
+        const span = e.shiftKey ? 480 : 120;
+        const v = Math.max(-1, Math.min(1, startV + (startY - e.clientY) / span));
+        set(v); render();
+      });
+      const endDrag = (e) => {
+        if (!dragging) return;
+        dragging = false;
+        try { el.releasePointerCapture(e.pointerId); } catch {}
+        el.classList.remove('is-active');
+      };
+      el.addEventListener('pointerup', endDrag);
+      el.addEventListener('pointercancel', endDrag);
+      el.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const step = e.shiftKey ? 0.2 : 0.05;
+        const v = Math.max(-1, Math.min(1, get() + (e.deltaY < 0 ? step : -step)));
+        set(v); render();
+      }, { passive: false });
+      el.addEventListener('dblclick', () => { set(0); render(); });
+    };
+
+    // FILTER（ON/OFF + amount。中央=フラット）
+    bindToggle('.ts-fx-filter-on', 'filter');
+    bindRange('.ts-fx-filter', (v) => { state.fx.filter.amount = parseInt(v, 10) / 100; });
+
+    // ISO（3バンドアイソレーター・ON/OFF + ツマミUI）
+    bindToggle('.ts-fx-iso-on', 'iso');
+    bindKnob(q('.ts-fx-iso-low'),  () => state.fx.iso.low,  (v) => { state.fx.iso.low  = v; applyFx(); });
+    bindKnob(q('.ts-fx-iso-mid'),  () => state.fx.iso.mid,  (v) => { state.fx.iso.mid  = v; applyFx(); });
+    bindKnob(q('.ts-fx-iso-high'), () => state.fx.iso.high, (v) => { state.fx.iso.high = v; applyFx(); });
+
+    // ECHO
+    bindToggle('.ts-fx-echo-on', 'echo');
+    bindRange('.ts-fx-echo-div',   (v) => { state.fx.echo.division = parseFloat(v); });
+    bindRange('.ts-fx-echo-depth', (v) => { state.fx.echo.depth = parseInt(v, 10) / 100; });
+
+    // TRANS
+    bindToggle('.ts-fx-trans-on', 'trans');
+    bindRange('.ts-fx-trans-div',   (v) => { state.fx.trans.division = parseFloat(v); });
+    bindRange('.ts-fx-trans-depth', (v) => { state.fx.trans.depth = parseInt(v, 10) / 100; });
+
+    // FLANGER
+    bindToggle('.ts-fx-flanger-on', 'flanger');
+    bindRange('.ts-fx-flanger-div',   (v) => { state.fx.flanger.division = parseFloat(v); });
+    bindRange('.ts-fx-flanger-depth', (v) => { state.fx.flanger.depth = parseInt(v, 10) / 100; });
+
+    // REVERB
+    bindToggle('.ts-fx-reverb-on', 'reverb');
+    bindRange('.ts-fx-reverb-depth', (v) => { state.fx.reverb.depth = parseInt(v, 10) / 100; });
+
+    // CRUSH
+    bindToggle('.ts-fx-crush-on', 'crush');
+    bindRange('.ts-fx-crush-bits',  (v) => { state.fx.crush.bits = parseInt(v, 10); });
+    bindRange('.ts-fx-crush-depth', (v) => { state.fx.crush.depth = parseInt(v, 10) / 100; });
+
+    // PITCH
+    bindToggle('.ts-fx-pitch-on', 'pitch');
+    const pitchVal = q('.ts-fx-pitch-val');
+    bindRange('.ts-fx-pitch-semi', (v) => {
+      state.fx.pitch.semitones = parseInt(v, 10);
+      if (pitchVal) pitchVal.textContent = (v > 0 ? '+' : '') + v;
+    });
   }
 
   // キーボードショートカット
