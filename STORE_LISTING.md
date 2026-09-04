@@ -157,6 +157,22 @@ https://github.com/XTAL-JP/tempo-slider/issues
 
 各ストア（AMO / Chrome Web Store）の「このバージョンについて」「リリースノート」欄に貼るテキスト。
 
+### 0.11.0 — 3-band Isolator + Firefox/YouTube MASTER TEMPO fix
+
+#### English (AMO / Chrome Web Store)
+```
+New: A 3-band isolator (LOW / MID / HIGH) is now built into the control panel, always visible next to the tempo fader. Turn a band down to cut/kill it, or up to boost it (+6 dB) — just like the isolator on a DJ mixer. Turn all three bands fully down to silence the audio completely. Each band has an ON/OFF toggle and DJM-style tick marks; double-click a knob to return it to 0 dB.
+
+Bug fix: On Firefox, turning MASTER TEMPO on for YouTube could silence the audio. Pitch keep now uses the browser's native pitch preservation instead of the Web Audio worklet path, so MASTER TEMPO works reliably across browsers.
+```
+
+#### 日本語
+```
+新機能: 3バンドアイソレーター（LOW / MID / HIGH）をコントロールパネルに搭載しました。テンポフェーダーの隣に常時表示され、各バンドを下げてカット/キル、上げて +6dB ブーストできます（DJ ミキサーのアイソレーターと同じ操作感）。3バンドすべてを下げきると音を完全に無音にできます。バンドごとに ON/OFF トグルと DJM 風の目盛り付き。ノブをダブルクリックすると 0dB に戻せます。
+
+不具合修正: Firefox で YouTube の MASTER TEMPO を ON にすると無音になることがある問題を修正しました。ピッチキープを Web Audio ワークレット経路からブラウザ標準のピッチ保持に変更し、どのブラウザでも MASTER TEMPO が確実に動作するようにしました。
+```
+
 ### 0.10.10 — Keyboard shortcut bug fix on Bandcamp search
 
 #### English (AMO / Chrome Web Store)
