@@ -34,6 +34,10 @@
   const USES_IFRAME_BRIDGE = (SITE === 'discogs');
   // YouTube ページ自身 — 同一ウィンドウの youtube-bridge.js を bridge として使用
   const USES_SELF_BRIDGE = (SITE === 'youtube');
+  // アイソレーター先行リリース用フラグ。他の FX（Filter/Echo/Reverb/Trans/Flanger/
+  // Crush/Pitch）は作り込み中のため UI を一旦非公開にする（true で復活）。
+  // ISOLATOR は情報カラムに常時表示され、この対象外（常に表示）。
+  const SHOW_FX_UNIT = false;
   const MSG_TAG = '__tempoSlider';
   const BRIDGE_MSG_TAG = '__tempoSliderBridge';
 
@@ -1284,6 +1288,13 @@
       return;
     }
     const q = (sel) => panel.querySelector(sel);
+
+    // アイソレーター先行リリース: 他 FX ユニットの UI を隠す（ISOLATOR は別途常時表示）。
+    // 配線自体はそのまま行い、コンテナだけ非表示にする（フラグ true で即復活）。
+    if (!SHOW_FX_UNIT) {
+      const fxSection = q('.tempo-slider__fx');
+      if (fxSection) fxSection.style.display = 'none';
+    }
 
     // FX セクションの開閉
     const fxToggle = q('.tempo-slider__fx-toggle');

@@ -159,14 +159,19 @@
       // low(ローシェルフ) → mid(ピーキング) → high(ハイシェルフ) を直列につなぐ。
       // 全バンド 0dB のとき各フィルタは素通し＝入力そのままになり、ON にしても音量が変わらない
       // （並列分割＋合算方式はバンド再構成で音量が持ち上がる問題があったため、直列 EQ 方式に変更）。
-      // kill はシェルフ/ピークを大きく下げて実現（完全なブリックウォールではないが DJ 用途には十分）。
+      // kill はシェルフ/ピークを大きく下げて実現。3バンドとも下げきったときは後段の
+      // _isoGain で出力を 0 に絞り、隙間の中域も残さず完全な無音にする（下記 setParams 参照）。
       this._isoLow  = ctx.createBiquadFilter(); this._isoLow.type  = 'lowshelf';  this._isoLow.frequency.setValueAtTime(200, t);
       this._isoMid  = ctx.createBiquadFilter(); this._isoMid.type  = 'peaking';   this._isoMid.frequency.setValueAtTime(1000, t); this._isoMid.Q.setValueAtTime(0.8, t);
       this._isoHigh = ctx.createBiquadFilter(); this._isoHigh.type = 'highshelf'; this._isoHigh.frequency.setValueAtTime(4000, t);
-      this._isoLow.connect(this._isoMid).connect(this._isoHigh);
+      // 出力ゲート: 3バンドとも下げきった（キル）ときだけ 0 に絞る。
+      // シェルフ/ピークの隙間（バンド間の中域）が通り抜けるため、EQ だけでは
+      // 全キルしても完全無音にならない。その残りをここで殺して真の無音にする。
+      this._isoGain = ctx.createGain(); this._isoGain.gain.setValueAtTime(1, t);
+      this._isoLow.connect(this._isoMid).connect(this._isoHigh).connect(this._isoGain);
       // 直列チェーンの入口/出口として扱う
       this._isoIn  = this._isoLow;
-      this._isoOut = this._isoHigh;
+      this._isoOut = this._isoGain;
 
       // ---------- Pitch (rubberband, optional) ----------
       // ノードは setParams で必要時に生成する（未使用時は挿入しない）。
@@ -283,6 +288,15 @@
       this._isoLow.gain.setTargetAtTime(isoDb(p.iso.low), t, 0.02);
       this._isoMid.gain.setTargetAtTime(isoDb(p.iso.mid), t, 0.02);
       this._isoHigh.gain.setTargetAtTime(isoDb(p.iso.high), t, 0.02);
+      // 全キル → 無音。ノブ最下(-1)付近で 0 に絞る。どれか1バンドでも開いていれば
+      // そのバンドの帯域は通すのでミュートしない（= 最も開いたバンドの開き具合が出力ゲイン）。
+      // openness: k=-1 で 0、k>=-0.9 で 1（下げきり直前の 10% だけで滑らかに絞る）。
+      let isoMute = 1;
+      if (p.iso.on) {
+        const openness = (k) => clamp((k + 1) / 0.1, 0, 1);
+        isoMute = Math.max(openness(p.iso.low), openness(p.iso.mid), openness(p.iso.high));
+      }
+      this._isoGain.gain.setTargetAtTime(isoMute, t, 0.02);
 
       // ---- Echo ----
       // wet/feedback は常に depth 準拠にしておき、on/off は送り(send)で切り替える。
@@ -382,7 +396,7 @@
         this._rvIn, this._rvOut, this._rvDry, this._rvSend, this._rvWet, this._rvConv,
         this._crIn, this._crOut, this._crDry, this._crWet, this._crShaper,
         this._trGate, this._trLfo, this._trDepth, this._trBias,
-        this._isoLow, this._isoMid, this._isoHigh,
+        this._isoLow, this._isoMid, this._isoHigh, this._isoGain,
         this._pitchNode,
       ];
       for (const n of nodes) { try { n && n.disconnect(); } catch {} }
