@@ -68,7 +68,9 @@ async function registerScriptsForSite(hostname) {
       {
         id: ids[0],
         matches,
-        js: ['content.js'],
+        // fx-chain.js を content.js より前に読み込む（window.TempoSliderFX を先に用意）。
+        // これが無いと state.fx が null になり、3バンドアイソレーターが非表示になる。
+        js: ['fx-chain.js', 'content.js'],
         css: ['panel.css'],
         runAt: 'document_idle',
       },
