@@ -12,6 +12,10 @@ try { importScripts('reserved-hostnames.js'); } catch (e) { /* Firefox では sc
 
 const STORAGE_KEY = 'customSites';
 const DISABLED_BUILTINS_KEY = 'disabledBuiltins';
+// ユーザーが有効化した「別ドメイン音源ホスト」（例: lhr.minibird.jp）。
+// これらの host の media レスポンスに DNR で CORS ヘッダーを付与し、
+// アイソレーター/FX 用の Web Audio グラフ化を可能にする。
+const AUDIO_HOSTS_KEY = 'customAudioHosts';
 const DNR_RULE_ID_START = 1000;
 
 // ---------- 永続化 ----------
@@ -31,6 +35,15 @@ async function loadDisabledBuiltins() {
 
 async function saveDisabledBuiltins(list) {
   await chrome.storage.local.set({ [DISABLED_BUILTINS_KEY]: list });
+}
+
+async function loadAudioHosts() {
+  const result = await chrome.storage.local.get(AUDIO_HOSTS_KEY);
+  return Array.isArray(result[AUDIO_HOSTS_KEY]) ? result[AUDIO_HOSTS_KEY] : [];
+}
+
+async function saveAudioHosts(hosts) {
+  await chrome.storage.local.set({ [AUDIO_HOSTS_KEY]: hosts });
 }
 
 async function disableBuiltin(hostname) {
@@ -152,6 +165,30 @@ async function removeDnrRulesForSite(hostname) {
   }
 }
 
+// 別ドメイン音源ホスト用の CORS 付与ルール（media のみ）。CSP 除去は不要。
+// ページ本体とは別ホストに音源を置くサイト（例: lighthouserecords.jp の音源が
+// lhr.minibird.jp）でアイソレーター/FX を効かせるために使う。
+async function addCorsRuleForHost(hostname) {
+  await removeDnrRulesForSite(hostname);
+  const ids = await nextDnrIds(1);
+  const rules = [
+    {
+      id: ids[0],
+      priority: 1,
+      action: {
+        type: 'modifyHeaders',
+        responseHeaders: [
+          { header: 'access-control-allow-origin', operation: 'set', value: '*' },
+        ],
+      },
+      // CORS 付与は <audio> の crossOrigin="anonymous" 経由再生のためだけに必要。
+      // media 以外に "*" を適用すると認証付き XHR が壊れるため media 限定にする。
+      condition: { urlFilter: `||${hostname}/`, resourceTypes: ['media'] },
+    },
+  ];
+  await chrome.declarativeNetRequest.updateDynamicRules({ addRules: rules });
+}
+
 // ---------- 公開オペレーション ----------
 async function addCustomSite(hostname) {
   hostname = (hostname || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
@@ -192,6 +229,57 @@ async function removeCustomSite(hostname) {
     await chrome.permissions.remove({ origins: originPatternsFor(hostname) });
   } catch (e) {}
   return { ok: true };
+}
+
+// ---------- 別ドメイン音源ホストの CORS 有効化 ----------
+async function addAudioHost(hostname) {
+  hostname = (hostname || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+  if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/.test(hostname)) {
+    return { ok: false, error: 'invalid_hostname' };
+  }
+  // 予約済みホスト（組み込みサイト / Google・CDN インフラ）は対象外。
+  if (typeof isReservedHostname === 'function' && isReservedHostname(hostname)) {
+    return { ok: false, error: 'reserved_hostname' };
+  }
+  const origins = originPatternsFor(hostname);
+  const granted = await chrome.permissions.contains({ origins });
+  if (!granted) return { ok: false, error: 'permission_not_granted' };
+
+  try {
+    await addCorsRuleForHost(hostname);
+  } catch (e) {
+    console.warn('[TEMPO Slider BG] audio CORS rule add failed:', e);
+    return { ok: false, error: 'dnr_failed' };
+  }
+
+  const hosts = await loadAudioHosts();
+  if (!hosts.includes(hostname)) {
+    hosts.push(hostname);
+    await saveAudioHosts(hosts);
+  }
+  return { ok: true, hostname };
+}
+
+async function removeAudioHost(hostname) {
+  await removeDnrRulesForSite(hostname);
+  const hosts = await loadAudioHosts();
+  await saveAudioHosts(hosts.filter(h => h !== hostname));
+  try {
+    await chrome.permissions.remove({ origins: originPatternsFor(hostname) });
+  } catch (e) {}
+  return { ok: true };
+}
+
+// 有効化済みかつ許可が残っている音源ホストのみを返す（content.js 用）。
+async function listGrantedAudioHosts() {
+  const hosts = await loadAudioHosts();
+  const granted = [];
+  for (const h of hosts) {
+    try {
+      if (await chrome.permissions.contains({ origins: originPatternsFor(h) })) granted.push(h);
+    } catch (e) {}
+  }
+  return granted;
 }
 
 // ---------- 起動時に復元 ----------
@@ -235,8 +323,42 @@ async function restoreCustomSites() {
   }
 }
 
-chrome.runtime.onInstalled.addListener(restoreCustomSites);
-chrome.runtime.onStartup.addListener(restoreCustomSites);
+// 別ドメイン音源ホストの DNR CORS ルールを起動毎に再登録する。
+// （動的 DNR ルールは永続するが、定義更新の反映と許可剥奪時のクリーンアップのため）
+async function restoreAudioHosts() {
+  let hosts = await loadAudioHosts();
+
+  if (typeof isReservedHostname === 'function') {
+    const reservedFound = hosts.filter(h => isReservedHostname(h));
+    if (reservedFound.length > 0) {
+      for (const h of reservedFound) await removeDnrRulesForSite(h);
+      hosts = hosts.filter(h => !isReservedHostname(h));
+      await saveAudioHosts(hosts);
+    }
+  }
+
+  for (const h of hosts) {
+    const granted = await chrome.permissions.contains({ origins: originPatternsFor(h) });
+    if (granted) {
+      try { await addCorsRuleForHost(h); } catch (e) {
+        console.warn('[TEMPO Slider BG] audio CORS re-register failed for', h, ':', e);
+      }
+    } else {
+      // 許可が剥奪されていたらクリーンアップ
+      await removeDnrRulesForSite(h);
+      hosts = hosts.filter(x => x !== h);
+      await saveAudioHosts(hosts);
+    }
+  }
+}
+
+async function restoreAll() {
+  await restoreCustomSites();
+  await restoreAudioHosts();
+}
+
+chrome.runtime.onInstalled.addListener(restoreAll);
+chrome.runtime.onStartup.addListener(restoreAll);
 
 // ---------- メッセージハンドラ ----------
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -252,6 +374,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.type === 'listSites') {
     Promise.all([loadCustomSites(), loadDisabledBuiltins()])
       .then(([sites, disabledBuiltins]) => sendResponse({ ok: true, sites, disabledBuiltins }));
+    return true;
+  }
+  if (msg.type === 'addAudioHost') {
+    addAudioHost(msg.hostname).then(sendResponse);
+    return true;
+  }
+  if (msg.type === 'removeAudioHost') {
+    removeAudioHost(msg.hostname).then(sendResponse);
+    return true;
+  }
+  if (msg.type === 'listAudioHosts') {
+    listGrantedAudioHosts().then(hosts => sendResponse({ ok: true, hosts }));
     return true;
   }
   if (msg.type === 'disableBuiltin') {

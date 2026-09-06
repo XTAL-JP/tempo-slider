@@ -157,6 +157,22 @@ https://github.com/XTAL-JP/tempo-slider/issues
 
 各ストア（AMO / Chrome Web Store）の「このバージョンについて」「リリースノート」欄に貼るテキスト。
 
+### 0.12.0 — Isolator/FX for cross-domain audio sources
+
+#### English (AMO / Chrome Web Store)
+```
+New: The isolator and tempo/pitch controls now work on record stores whose audio previews are served from a separate domain (e.g. samples hosted on a different CDN than the shop page). When such a source is detected, open the extension popup and click "Enable" next to the audio host — after a one-time permission grant, the isolator applies to it and stays enabled automatically on future visits.
+
+Fix: On user-added custom sites, the effects engine (fx-chain) was not loaded, so the isolator was hidden. It now loads correctly on every enabled site.
+```
+
+#### 日本語
+```
+新機能: 音源プレビューがページ本体とは別ドメインから配信されるレコードショップ（例: 試聴 mp3 が店舗ページと別 CDN にあるサイト）でも、アイソレーターやテンポ/ピッチ操作が効くようになりました。該当音源を検出すると拡張アイコンのポップアップに音源ホストが表示され、「Enable」を押して一度だけ許可すると、その音源にアイソレーターが適用され、次回以降は自動で有効になります。
+
+不具合修正: ユーザーが追加したカスタムサイトでエフェクトエンジン（fx-chain）が読み込まれず、アイソレーターが非表示になっていた問題を修正しました。有効化した全サイトで正しく読み込まれるようになりました。
+```
+
 ### 0.11.0 — 3-band Isolator + Firefox/YouTube MASTER TEMPO fix
 
 #### English (AMO / Chrome Web Store)

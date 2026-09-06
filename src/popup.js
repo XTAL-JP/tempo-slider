@@ -71,7 +71,98 @@ async function bg(payload) {
 
 async function refresh() {
   await refreshCurrentSiteButton();
+  await renderAudioSources();
   await renderList();
+}
+
+// 現在タブの content script に別ドメイン音源ホストを問い合わせ、
+// 未有効化のものに「Enable」ボタンを出す（＝アイソレーター/FX を効かせる許可）。
+async function renderAudioSources() {
+  const section = $('#audioSection');
+  const ul = $('#audioList');
+  ul.replaceChildren();
+
+  const tab = currentTabInfo && currentTabInfo.tab;
+  if (!tab || !currentTabInfo.isHttp) { section.hidden = true; return; }
+
+  let info = null;
+  try {
+    info = await ext.tabs.sendMessage(tab.id, { target: 'tempo-slider-content', type: 'getAudioInfo' });
+  } catch {
+    // content script 未注入（未対応サイト等）
+    info = null;
+  }
+
+  const blocked = (info && info.hosts) || [];
+  const enabled = (info && info.enabled) || [];
+  if (blocked.length === 0 && enabled.length === 0) { section.hidden = true; return; }
+  section.hidden = false;
+
+  const addRow = (host, isEnabled) => {
+    const li = document.createElement('li');
+    const span = document.createElement('span');
+    span.textContent = host;
+    li.appendChild(span);
+    const btn = document.createElement('button');
+    if (isEnabled) {
+      btn.textContent = '✕';
+      btn.title = `Disable audio source ${host}`;
+      btn.addEventListener('click', () => disableAudioHost(host, tab.id));
+    } else if (isReservedHostname(host)) {
+      btn.textContent = 'reserved';
+      btn.disabled = true;
+    } else {
+      btn.textContent = 'Enable';
+      btn.title = `Enable isolator / FX for audio from ${host}`;
+      btn.addEventListener('click', () => enableAudioHost(host, tab.id));
+    }
+    li.appendChild(btn);
+    ul.appendChild(li);
+  };
+
+  for (const host of enabled) addRow(host, true);
+  for (const host of blocked) addRow(host, false);
+}
+
+async function enableAudioHost(host, tabId) {
+  setStatus(`Requesting permission for ${host}...`);
+  const origins = originPatternsFor(host);
+  let granted = false;
+  try {
+    granted = await ext.permissions.request({ origins });
+  } catch (e) {
+    setStatus(`Permission request failed: ${e.message || e}`, true);
+    return;
+  }
+  if (!granted) {
+    setStatus('Permission denied', true);
+    return;
+  }
+  const res = await bg({ type: 'addAudioHost', hostname: host });
+  if (res && res.ok) {
+    setStatus(`Enabled ${host} — reloading tab`);
+    if (tabId) {
+      try { await ext.tabs.reload(tabId); } catch (e) {}
+    }
+  } else {
+    const err = res && res.error;
+    setStatus(`Failed: ${err || 'unknown'}`, true);
+  }
+  await refresh();
+}
+
+async function disableAudioHost(host, tabId) {
+  setStatus(`Disabling ${host}...`);
+  const res = await bg({ type: 'removeAudioHost', hostname: host });
+  if (res && res.ok) {
+    setStatus(`Disabled ${host}`);
+    if (tabId) {
+      try { await ext.tabs.reload(tabId); } catch (e) {}
+    }
+  } else {
+    setStatus('Disable failed', true);
+  }
+  await refresh();
 }
 
 async function refreshCurrentSiteButton() {

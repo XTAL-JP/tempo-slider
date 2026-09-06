@@ -68,6 +68,12 @@
     // FX（DJM 風エフェクトユニット）
     fxChain: null,                              // FxChain インスタンス（直接経路）
     fx: (window.TempoSliderFX && window.TempoSliderFX.defaultParams()) || null,
+    // ユーザーが popup から CORS 有効化した「別ドメイン音源ホスト」の集合。
+    // ここに含まれるホストの cross-origin audio は Web Audio グラフ化を許可する
+    // （background 側で DNR により Access-Control-Allow-Origin: * を付与済み）。
+    enabledAudioHosts: new Set(),
+    // グラフ化を CORS 未対応でスキップした直近の別ドメイン音源ホスト（popup 案内用）
+    pendingAudioHost: null,
   };
 
   function findAudioElements() {
@@ -306,19 +312,58 @@
     }
   }
 
+  // audio 要素の音源ホスト名を返す（取得不能なら null）
+  function audioHostOf(audioEl) {
+    const src = audioEl && (audioEl.currentSrc || audioEl.src);
+    if (!src) return null;
+    try {
+      return new URL(src, location.href).hostname;
+    } catch {
+      return null;
+    }
+  }
+
   function audioSupportsCors(audioEl) {
     if (!audioEl) return false;
     // ページ側が crossorigin 属性を付けている = サーバが CORS 対応している前提
     if (audioEl.crossOrigin) return true;
-    const src = audioEl.currentSrc || audioEl.src;
-    if (!src) return false;
+    const host = audioHostOf(audioEl);
+    if (!host) return false;
+    // ユーザーが popup から有効化した音源ホスト（DNR で CORS 付与済み）
+    if (state.enabledAudioHosts.has(host)) return true;
+    return CORS_ENABLED_AUDIO_HOSTS.some(d =>
+      host === d || host.endsWith('.' + d));
+  }
+
+  // background から「有効化済み音源ホスト一覧」を取得して state に反映する。
+  // （popup で有効化 → タブリロード後、この一覧に載ったホストはグラフ化が通る）
+  async function loadEnabledAudioHosts() {
     try {
-      const url = new URL(src, location.href);
-      return CORS_ENABLED_AUDIO_HOSTS.some(d =>
-        url.hostname === d || url.hostname.endsWith('.' + d));
-    } catch {
-      return false;
+      const res = await ext.runtime.sendMessage({ target: 'tempo-slider-bg', type: 'listAudioHosts' });
+      if (res && res.ok && Array.isArray(res.hosts)) {
+        state.enabledAudioHosts = new Set(res.hosts);
+      }
+    } catch { /* bg 未応答時はデフォルト（空）のまま */ }
+  }
+
+  // このタブ内の cross-origin audio/video を走査し、CORS 有効化が必要なホストと
+  // 既に有効化済みのホストに仕分けする（popup からの問い合わせに応答するため）。
+  function collectAudioHosts() {
+    const blocked = new Set();
+    const enabled = new Set();
+    for (const el of document.querySelectorAll('audio, video')) {
+      if (!isCrossOriginAudio(el)) continue;
+      const h = audioHostOf(el);
+      if (!h) continue;
+      if (state.enabledAudioHosts.has(h)) { enabled.add(h); continue; }
+      // crossorigin 属性付き / 組み込み CDN は拡張の対象外（既に CORS 対応）
+      if (audioSupportsCors(el)) continue;
+      blocked.add(h);
     }
+    if (state.pendingAudioHost && !state.enabledAudioHosts.has(state.pendingAudioHost)) {
+      blocked.add(state.pendingAudioHost);
+    }
+    return { blocked: [...blocked], enabled: [...enabled] };
   }
 
   async function ensureGraph() {
@@ -334,7 +379,14 @@
     // cross-origin で CORS 対応が不明な音源（custom サイト等）は Web Audio グラフ化しない
     // (crossOrigin リロードで再生破壊する／グラフ経由で muted 出力になるのを防ぐ)
     if (!isBuiltinSite && isCrossOriginAudio(target) && !audioSupportsCors(target)) {
-      console.warn('[TEMPO Slider] cross-origin audio without CORS — graph build skipped');
+      const host = audioHostOf(target);
+      if (host) state.pendingAudioHost = host;
+      // パネルに案内を出す（実際の許可要求は popup 側でしか行えないため誘導する）
+      if (panelRefs && panelRefs.statusEl && host) {
+        panelRefs.statusEl.textContent =
+          `音源 ${host} は別ドメインです — 拡張アイコンから有効化してください`;
+      }
+      console.warn('[TEMPO Slider] cross-origin audio without CORS — graph build skipped; host=', host);
       return false;
     }
 
@@ -1555,6 +1607,26 @@
   function init() {
     console.log('[TEMPO Slider] content.js init, SITE=', SITE, 'host=', location.hostname);
     injectPanel();
+    // 有効化済み音源ホストを先読み（await せず fire-and-forget。ユーザーが
+    // アイソレーター等を操作するまでには反映される）
+    loadEnabledAudioHosts();
+    // popup からの問い合わせ（別ドメイン音源ホストの検出結果）に応答する
+    if (ext.runtime && ext.runtime.onMessage) {
+      ext.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+        if (!msg || msg.target !== 'tempo-slider-content') return;
+        if (msg.type === 'getAudioInfo') {
+          const { blocked, enabled } = collectAudioHosts();
+          sendResponse({ ok: true, hosts: blocked, enabled });
+          return true;
+        }
+        if (msg.type === 'audioHostEnabled') {
+          // popup が有効化した直後の通知（タブは直後にリロードされるが保険で反映）
+          if (msg.host) state.enabledAudioHosts.add(msg.host);
+          sendResponse({ ok: true });
+          return true;
+        }
+      });
+    }
     // audio と YouTube iframe の両方を監視
     // （custom サイトで両方が混在するページに対応するため）
     // - bandcamp/beatport/traxsource: ほぼ audio のみ → iframe 監視は no-op
